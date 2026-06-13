@@ -30,9 +30,9 @@ _Avoid_: banned, suspended, inactive
 Better Auth's proof that a request comes from a signed-in User. Role is re-read from the database on each privileged request rather than trusted from the Session.
 _Avoid_: token, cookie, login
 
-**Bootstrap admin**:
-The first Admin, provisioned from `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` at startup when no Admin exists yet.
-_Avoid_: seed user, root admin
+**First-run setup**:
+The interactive flow that creates the first Admin on a fresh install. When no Admin exists (`hasAdmin` returns false), all entry-point pages redirect to `/setup`, where the operator creates the initial admin account. Once an Admin exists, `/setup` redirects away.
+_Avoid_: seed user, env admin, root admin
 
 **Access guard**:
 A server-side check that gates a request by **Session** (`requireSession*`) or **Role** (`requireAdmin*`), always re-reading Role from the database. Each comes in two adapters: `*OrRedirect` for pages, `*OrThrow` for Server Actions / route handlers. `requireAdmin*` layers on `requireSession*`.
@@ -41,7 +41,7 @@ _Avoid_: middleware, auth check, gate
 ### Provisioning
 
 **Provision**:
-To create a User and set its Role + verified email in one step (`users.provision`) — distinct from end-user **Sign up**. Authorization-free: the caller authorizes first (via an **Access guard**); the module validates its own inputs. Used by the Admin surface and the Bootstrap admin.
+To create a User and set its Role + verified email in one step (`users.provision`) — distinct from end-user **Sign up**. Authorization-free: the caller authorizes first (via an **Access guard**); the module validates its own inputs. Used by the Admin surface and the first-run setup flow.
 _Avoid_: register, create-user (as a domain verb), seed
 
 **Sign up**:
@@ -60,14 +60,14 @@ _Avoid_: our code, custom code
 
 ## Flagged ambiguities
 
-- **"Create a user"** is overloaded: Better Auth's `signUpEmail` backs both end-user **Sign up** (default Role) and Admin/Bootstrap **Provision** (chosen Role + verified email). Prefer **Provision** when a Role is assigned, **Sign up** for the self-service path.
+- **"Create a user"** is overloaded: Better Auth's `signUpEmail` backs both end-user **Sign up** (default Role) and Admin/First-run setup **Provision** (chosen Role + verified email). Prefer **Provision** when a Role is assigned, **Sign up** for the self-service path.
 - **"Provider"** is overloaded: in identity it is the Better Auth sign-in method (the `credential`/OAuth **Account** provider). Reserve "provider" for this Better Auth sense.
 
 ## Example dialogue
 
 > **Dev:** When an Admin adds someone from the Admin panel, is that a sign up?
 > **Domain:** No — sign up is what a visitor does to themselves and always lands as `user`. The Admin *provisions* the User: same Better Auth record underneath, but the Admin picks the Role and the email is pre-verified.
-> **Dev:** And the Bootstrap admin at startup?
-> **Domain:** Also a provision — same path, just driven by env vars instead of a Session, and it only runs when there's no Admin yet.
+> **Dev:** And the first-run setup?
+> **Domain:** Also a provision — same path, just driven by the /setup page instead of a Session, and it only runs when there's no Admin yet.
 > **Dev:** If I set someone's Role to disabled?
 > **Domain:** They lose access immediately — their Sessions are destroyed and the next sign-in is refused.

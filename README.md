@@ -18,9 +18,8 @@ A clean Next.js boilerplate with authentication, role-based access, and an admin
 - **Role-based access** — every user is `user`, `admin`, or `disabled`. Roles are re-read
   from the database on each privileged request, so changes take effect immediately.
   Setting a user to `disabled` rejects sign-in and destroys existing sessions.
-- **Bootstrap admin** — the first admin is provisioned at startup from
-  `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` when no admin exists yet
-  (see `src/lib/bootstrap-admin.ts`).
+- **First-run setup** — on a fresh install with no admin, every page redirects
+  to `/setup` where you create the first administrator interactively.
 - **Admin panel** (`/admin`, admin-only) — add, edit, and delete users; change roles.
 
 ## Prerequisites
@@ -65,21 +64,9 @@ BETTER_AUTH_SECRET=<your-random-secret>
 # Public URL (used by Better Auth for callbacks)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# Bootstrap admin — provisions the first admin at startup when none exists
-ADMIN_EMAIL=<admin-email>
-ADMIN_PASSWORD=<admin-password>
-ADMIN_NAME=<admin-display-name>
-
 # App environment: "dev" enables the diagnostics endpoint (defaults to "prod")
 ENV=dev
 ```
-
-## Bootstrap Admin
-
-On startup, if no admin user exists, the app creates one from the `ADMIN_EMAIL`,
-`ADMIN_PASSWORD`, and `ADMIN_NAME` env vars. After that first run, these vars are
-ignored — the admin is already in the database. To reset, delete the admin row and
-restart.
 
 ## Scripts
 
@@ -103,6 +90,7 @@ src/
   app/
     admin/          # Admin user-management panel (admin-only)
     auth/           # Sign-in, sign-up, forgot/reset password pages
+    setup/          # First-run setup page (creates the first admin)
     api/
       auth/         # Better Auth catch-all route handler
       diagnostics/  # Dev-only diagnostics endpoint
@@ -112,7 +100,6 @@ src/
     auth.ts         # Better Auth server config
     auth-client.ts  # Better Auth browser client
     auth-guards.ts  # requireSession* / requireAdmin* access guards
-    bootstrap-admin.ts  # First-admin provisioning logic
     db.ts           # Drizzle client
     schema.ts       # Database schema
     users.ts        # User provisioning module
