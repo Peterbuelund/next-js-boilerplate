@@ -111,7 +111,7 @@ export function SetupChecklist() {
       label: "Database schema applied",
       ok: !!data?.database.schemaApplied,
       detail: !data?.database.schemaApplied
-        ? "Run: pnpm db:push"
+        ? "Run: pnpm db:migrate"
         : undefined,
     },
     {
@@ -158,6 +158,22 @@ export function SetupChecklist() {
           </li>
         ))}
       </ul>
+
+      {data?.overallStatus === "ok" ? (
+        <div className="mt-4">
+          <p className="text-sm text-muted-foreground mb-2">
+            Everything looks good.
+          </p>
+          <Button
+            className="w-full"
+            onClick={() => {
+              window.location.href = "/";
+            }}
+          >
+            Continue
+          </Button>
+        </div>
+      ) : null}
 
       {data ? (
         <div className="mt-4 text-xs text-muted-foreground">

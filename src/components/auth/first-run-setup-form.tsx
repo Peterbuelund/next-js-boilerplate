@@ -12,17 +12,32 @@ export function FirstRunSetupForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
     setLoading(true);
 
     try {
       await createFirstAdminAction({ name, email, password });
-      await authClient.signIn.email({ email, password });
+      // Better Auth's client returns { data, error } and never throws, so the
+      // result must be checked explicitly. The admin already exists at this
+      // point; if auto sign-in fails, send them to sign in manually rather than
+      // silently bouncing off the session-guarded home page.
+      const result = await authClient.signIn.email({ email, password });
+      if (result.error) {
+        window.location.href = "/auth/sign-in";
+        return;
+      }
       window.location.href = "/";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Setup failed");
@@ -70,6 +85,18 @@ export function FirstRunSetupForm() {
                 placeholder="Password (min 8 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Re-enter password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 minLength={8}
               />

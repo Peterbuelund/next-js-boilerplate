@@ -30,8 +30,12 @@ _Avoid_: banned, suspended, inactive
 Better Auth's proof that a request comes from a signed-in User. Role is re-read from the database on each privileged request rather than trusted from the Session.
 _Avoid_: token, cookie, login
 
+**Preflight**:
+A system-readiness gate that runs before any entry-point page proceeds. The system is _ready_ only when `BETTER_AUTH_SECRET` is set **and** the database is reachable with its schema migrated. When not ready, every entry-point page redirects to `/preflight`, which shows the readiness checklist (backed by `/api/diagnostics`); `/preflight` redirects away once the system is ready. Distinct from **First-run setup**: Preflight is about the _system_ being able to run at all; First-run setup is about creating the first **Admin**. The entry cascade is Preflight → First-run setup → Sign in.
+_Avoid_: setup (reserved for First-run setup), health check, diagnostics (reserve for the `/api/diagnostics` endpoint Preflight reads)
+
 **First-run setup**:
-The interactive flow that creates the first Admin on a fresh install. When no Admin exists (`hasAdmin` returns false), all entry-point pages redirect to `/setup`, where the operator creates the initial admin account. Once an Admin exists, `/setup` redirects away.
+The interactive flow that creates the first Admin on a fresh install. Runs only after **Preflight** passes. When no Admin exists (`hasAdmin` returns false), all entry-point pages redirect to `/setup`, where the operator creates the initial admin account. Once an Admin exists, `/setup` redirects away.
 _Avoid_: seed user, env admin, root admin
 
 **Access guard**:

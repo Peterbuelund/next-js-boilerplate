@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { hasAdmin } from "@/lib/users";
+import { getSystemReadiness } from "@/lib/system-readiness";
 import { SignInForm } from "@/components/auth/sign-in-form";
 
 // Depends on runtime DB state (whether an Admin exists), so it must not be
@@ -7,6 +8,7 @@ import { SignInForm } from "@/components/auth/sign-in-form";
 export const dynamic = "force-dynamic";
 
 export default async function SignInPage() {
+  if (!(await getSystemReadiness()).ready) redirect("/preflight");
   if (!(await hasAdmin())) redirect("/setup");
 
   return (

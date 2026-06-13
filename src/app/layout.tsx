@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Buegentic",
-  description: "AI platform",
+  title: "next-dev",
+  description: "next-dev",
 };
 
 export default function RootLayout({
