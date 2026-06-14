@@ -35,7 +35,7 @@ export type Outcome =
 // --- plumbing (shared by all four wrappers) -------------------------------
 
 /** Fetch the current Session via Better Auth, or `null` when there is none. */
-async function getSession(): Promise<AuthContext | null> {
+export async function getSession(): Promise<AuthContext | null> {
   const result = await auth.api.getSession({ headers: await headers() });
   if (!result?.session) {
     return null;
@@ -115,10 +115,7 @@ export async function requireSessionOrThrow(): Promise<AuthContext> {
  */
 export async function requireAdminOrRedirect(): Promise<AdminContext> {
   const ctx = await getSession();
-  // Snapshot `db` into a local `const` so the ternary's narrowing flows into the
-  // reader closure (a captured mutable module binding would not narrow there).
-  const database = db;
-  const reader = database ? (id: string) => readRole(database, id) : null;
+  const reader = (id: string) => readRole(db, id);
   const outcome = await resolveAdmin(ctx, reader);
 
   if (!outcome.ok) {
@@ -126,12 +123,6 @@ export async function requireAdminOrRedirect(): Promise<AdminContext> {
     if (outcome.reason === "no-session") {
       redirect("/auth/sign-in");
     }
-    redirect("/");
-  }
-
-  if (!db) {
-    // Unreachable in practice (an `ok` outcome required a non-null reader, which
-    // we only build from a non-null `db`), but this keeps `db` narrowed.
     redirect("/");
   }
 
@@ -145,10 +136,7 @@ export async function requireAdminOrRedirect(): Promise<AdminContext> {
  */
 export async function requireAdminOrThrow(): Promise<AdminContext> {
   const ctx = await getSession();
-  // Snapshot `db` into a local `const` so the ternary's narrowing flows into the
-  // reader closure (a captured mutable module binding would not narrow there).
-  const database = db;
-  const reader = database ? (id: string) => readRole(database, id) : null;
+  const reader = (id: string) => readRole(db, id);
   const outcome = await resolveAdmin(ctx, reader);
 
   if (!outcome.ok) {
@@ -159,11 +147,6 @@ export async function requireAdminOrThrow(): Promise<AdminContext> {
       throw new Error("Database unavailable");
     }
     throw new Error("Forbidden");
-  }
-
-  if (!db) {
-    // Unreachable for the same reason as above; narrows `db` to non-null.
-    throw new Error("Database unavailable");
   }
 
   return { ...outcome.ctx, db };

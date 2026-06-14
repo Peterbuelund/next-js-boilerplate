@@ -30,8 +30,16 @@ _Avoid_: banned, suspended, inactive
 Better Auth's proof that a request comes from a signed-in User. Role is re-read from the database on each privileged request rather than trusted from the Session.
 _Avoid_: token, cookie, login
 
+**Environment contract**:
+The set of environment variables the app requires to boot, validated once at module load by `env.ts` (a zod parse). A missing or malformed _required_ variable (`POSTGRES_URL`, `BETTER_AUTH_SECRET`) crashes the process — it never degrades to a runtime check or a UI prompt. The single typed `env` export replaces every scattered `process.env.X!` / `Boolean(process.env.X)`. Required secrets are supplied at build time (e.g. via CI/workflow secrets), so the parse is strict everywhere — there is no build-time bypass. Distinct from **Preflight**: the Environment contract is about _static configuration_ being present at boot; Preflight is about _runtime_ database state.
+_Avoid_: config check, env guard, settings
+
+**Readiness probe**:
+The single runtime check of database state — a `SELECT 1` ping plus a `user`-table touch under a 5s timeout — exposed by `probeReadiness()` as a structured `ReadinessReport` (`connected`, `schemaApplied`, `error?`). Both consumers project from it: **Preflight**'s boolean gate via `getSystemReadiness()` / `isReady()`, and the `/api/diagnostics` payload the checklist renders. One probe, never two.
+_Avoid_: health check, ping, heartbeat
+
 **Preflight**:
-A system-readiness gate that runs before any entry-point page proceeds. The system is _ready_ only when `BETTER_AUTH_SECRET` is set **and** the database is reachable with its schema migrated. When not ready, every entry-point page redirects to `/preflight`, which shows the readiness checklist (backed by `/api/diagnostics`); `/preflight` redirects away once the system is ready. Distinct from **First-run setup**: Preflight is about the _system_ being able to run at all; First-run setup is about creating the first **Admin**. The entry cascade is Preflight → First-run setup → Sign in.
+A _runtime_ readiness gate that runs before any entry-point page proceeds. The system is _ready_ only when the database is reachable with its schema migrated. Static configuration (`BETTER_AUTH_SECRET`, `POSTGRES_URL`) is no longer Preflight's concern — it is enforced at boot by the **Environment contract**. When not ready, every entry-point page redirects to `/preflight`, which shows the readiness checklist (backed by `/api/diagnostics`); `/preflight` redirects away once the system is ready. Distinct from **First-run setup**: Preflight is about the _system_ being able to run at all; First-run setup is about creating the first **Admin**. Sits first in the **Entry cascade**.
 _Avoid_: setup (reserved for First-run setup), health check, diagnostics (reserve for the `/api/diagnostics` endpoint Preflight reads)
 
 **First-run setup**:
@@ -41,6 +49,10 @@ _Avoid_: seed user, env admin, root admin
 **Access guard**:
 A server-side check that gates a request by **Session** (`requireSession*`) or **Role** (`requireAdmin*`), always re-reading Role from the database. Each comes in two adapters: `*OrRedirect` for pages, `*OrThrow` for Server Actions / route handlers. `requireAdmin*` layers on `requireSession*`.
 _Avoid_: middleware, auth check, gate
+
+**Entry cascade**:
+The ordered sequence of gates every entry-point page runs before rendering: **Preflight** → **First-run setup** → **Sign in**. Resolved by a single pure module (`resolveEntry`) that, given the current system state and the requesting path, returns the destination to redirect to or signals "stay". Each entry-point page is a thin adapter: read state, call `resolveEntry`, redirect. The **Environment contract** is _not_ part of the cascade — env is guaranteed present by the time any page runs, so the cascade's first question is Preflight (runtime DB readiness).
+_Avoid_: routing guard, middleware, redirect chain
 
 ### Provisioning
 

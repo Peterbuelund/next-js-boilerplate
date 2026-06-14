@@ -1,150 +1,21 @@
 import { NextResponse } from "next/server";
-
-type StatusLevel = "ok" | "error";
-
-interface DiagnosticsResponse {
-  timestamp: string;
-  env: {
-    POSTGRES_URL: boolean;
-    BETTER_AUTH_SECRET: boolean;
-    NEXT_PUBLIC_APP_URL: boolean;
-  };
-  database: {
-    connected: boolean;
-    schemaApplied: boolean;
-    error?: string;
-  };
-  auth: {
-    configured: boolean;
-    routeResponding: boolean | null;
-  };
-  storage: {
-    configured: boolean;
-    type: "local" | "remote";
-  };
-  overallStatus: StatusLevel;
-}
+import { probeReadiness, isReady } from "@/lib/system-readiness";
 
 // This endpoint is intentionally public (no auth required) because it's used
 // by the setup checklist on the homepage before users are logged in.
-// It only returns boolean flags about configuration status, not sensitive data.
-export async function GET(req: Request) {
-  const env = {
-    POSTGRES_URL: Boolean(process.env.POSTGRES_URL),
-    BETTER_AUTH_SECRET: Boolean(process.env.BETTER_AUTH_SECRET),
-    NEXT_PUBLIC_APP_URL: Boolean(process.env.NEXT_PUBLIC_APP_URL),
-  } as const;
-
-  // Database checks with timeout
-  let dbConnected = false;
-  let schemaApplied = false;
-  let dbError: string | undefined;
-  if (env.POSTGRES_URL) {
-    try {
-      // Add timeout to prevent hanging on unreachable database
-      const dbCheckPromise = (async () => {
-        const [{ db }, { sql }, schema] = await Promise.all([
-          import("@/lib/db"),
-          import("drizzle-orm"),
-          import("@/lib/schema"),
-        ]);
-
-        if (!db) {
-          throw new Error("Database not initialized");
-        }
-
-        // Ping DB - this will actually attempt to connect
-        const result = await db.execute(sql`SELECT 1 as ping`);
-        if (!result) {
-          throw new Error("Database query returned no result");
-        }
-        dbConnected = true;
-
-        try {
-          // Touch a known table to verify migrations
-          await db.select().from(schema.user).limit(1);
-          schemaApplied = true;
-        } catch {
-          schemaApplied = false;
-          // If we can't query the user table, it's likely migrations haven't run
-          if (!dbError) {
-            dbError = "Schema not applied. Run: pnpm db:migrate";
-          }
-        }
-      })();
-
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Database connection timeout (5s)")), 5000)
-      );
-
-      await Promise.race([dbCheckPromise, timeoutPromise]);
-    } catch {
-      dbConnected = false;
-      schemaApplied = false;
-
-      // Provide user-friendly error messages
-      dbError = "Database not connected. Please start your PostgreSQL database and verify your POSTGRES_URL in .env";
-    }
-  } else {
-    dbConnected = false;
-    schemaApplied = false;
-    dbError = "POSTGRES_URL is not set";
-  }
-
-  // Auth route check: we consider the route responding if it returns any HTTP response
-  // for /api/auth/session (status codes in the 2xx-4xx range are acceptable for readiness)
-  const origin = (() => {
-    try {
-      return new URL(req.url).origin;
-    } catch {
-      return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    }
-  })();
-
-  let authRouteResponding: boolean | null = null;
-  try {
-    const res = await fetch(`${origin}/api/auth/session`, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-    authRouteResponding = res.status >= 200 && res.status < 500;
-  } catch {
-    authRouteResponding = false;
-  }
-
-  const authConfigured = env.BETTER_AUTH_SECRET;
-
-  // Storage configuration check
-  const storageConfigured = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
-  const storageType: "local" | "remote" = storageConfigured ? "remote" : "local";
-
-  const overallStatus: StatusLevel = (() => {
-    if (!env.POSTGRES_URL || !dbConnected || !schemaApplied) return "error";
-    if (!authConfigured) return "error";
-    return "ok";
-  })();
-
-  const body: DiagnosticsResponse = {
+// It only returns boolean flags about runtime database state, not sensitive data.
+//
+// Thin serializer over the shared readiness probe: the boolean gate and this
+// payload both project from a single source of truth (`probeReadiness`).
+export async function GET() {
+  const report = await probeReadiness();
+  return NextResponse.json({
     timestamp: new Date().toISOString(),
-    env,
     database: {
-      connected: dbConnected,
-      schemaApplied,
-      ...(dbError !== undefined && { error: dbError }),
+      connected: report.connected,
+      schemaApplied: report.schemaApplied,
+      ...(report.error !== undefined && { error: report.error }),
     },
-    auth: {
-      configured: authConfigured,
-      routeResponding: authRouteResponding,
-    },
-    storage: {
-      configured: storageConfigured,
-      type: storageType,
-    },
-    overallStatus,
-  };
-
-  return NextResponse.json(body, {
-    status: 200,
+    overallStatus: isReady(report) ? "ok" : "error",
   });
 }

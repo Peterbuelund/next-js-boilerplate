@@ -8,6 +8,10 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    env: {
+      POSTGRES_URL: "postgresql://test:test@localhost:5432/test",
+      BETTER_AUTH_SECRET: "test-secret-value",
+    },
   },
   // Mirror the tsconfig `@/*` -> `src/*` path alias so tests can import modules
   // that use the alias (e.g. the Access guards in `@/lib/auth-guards`).

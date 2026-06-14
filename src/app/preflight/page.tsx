@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 import { SetupChecklist } from "@/components/setup-checklist";
-import { getSystemReadiness } from "@/lib/system-readiness";
+import { entryDestination } from "@/lib/entry-cascade";
 
 // Reads runtime DB/env state, so it must not be statically prerendered.
 export const dynamic = "force-dynamic";
 
 export default async function PreflightPage() {
-  if ((await getSystemReadiness()).ready) redirect("/");
+  const dest = await entryDestination();
+  if (dest !== "/preflight") redirect(dest ?? "/");
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">

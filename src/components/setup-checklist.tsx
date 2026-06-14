@@ -6,19 +6,10 @@ import { Button } from "@/components/ui/button";
 
 type DiagnosticsResponse = {
   timestamp: string;
-  env: {
-    POSTGRES_URL: boolean;
-    BETTER_AUTH_SECRET: boolean;
-    NEXT_PUBLIC_APP_URL: boolean;
-  };
   database: {
     connected: boolean;
     schemaApplied: boolean;
     error?: string;
-  };
-  auth: {
-    configured: boolean;
-    routeResponding: boolean | null;
   };
   overallStatus: "ok" | "error";
 };
@@ -75,27 +66,7 @@ export function SetupChecklist() {
     return () => controller.abort();
   }, [fetchDiagnostics]);
 
-  const envVarsToCheck = [
-    { key: "POSTGRES_URL" as const, label: "POSTGRES_URL" },
-    { key: "BETTER_AUTH_SECRET" as const, label: "BETTER_AUTH_SECRET" },
-  ] as const;
-
-  const missingEnvVars = data
-    ? envVarsToCheck.filter((v) => !data.env[v.key]).map((v) => v.label)
-    : [];
-
   const steps = [
-    {
-      key: "env",
-      label: "Environment variables",
-      ok:
-        !!data?.env.POSTGRES_URL &&
-        !!data?.env.BETTER_AUTH_SECRET,
-      detail:
-        missingEnvVars.length > 0
-          ? `Missing: ${missingEnvVars.join(", ")}`
-          : undefined,
-    },
     {
       key: "db-connected",
       label: "Database connected",
@@ -113,15 +84,6 @@ export function SetupChecklist() {
       detail: !data?.database.schemaApplied
         ? "Run: pnpm db:migrate"
         : undefined,
-    },
-    {
-      key: "auth",
-      label: "Auth configured",
-      ok: !!data?.auth.configured,
-      detail:
-        data?.auth.routeResponding === false
-          ? "Auth route not responding"
-          : undefined,
     },
   ] as const;
 

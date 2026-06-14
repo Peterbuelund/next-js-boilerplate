@@ -64,8 +64,6 @@ BETTER_AUTH_SECRET=<your-random-secret>
 # Public URL (used by Better Auth for callbacks)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# App environment: "dev" enables the diagnostics endpoint (defaults to "prod")
-ENV=dev
 ```
 
 ## Scripts

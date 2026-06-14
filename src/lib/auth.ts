@@ -3,10 +3,11 @@ import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import * as schema from "@/lib/schema";
 
 export const auth = betterAuth({
-  database: drizzleAdapter(db!, {
+  database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
       user: schema.user,
@@ -15,8 +16,8 @@ export const auth = betterAuth({
       verification: schema.verification,
     },
   }),
-  secret: process.env.BETTER_AUTH_SECRET!,
-  baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  secret: env.BETTER_AUTH_SECRET,
+  baseURL: env.NEXT_PUBLIC_APP_URL,
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
@@ -34,7 +35,7 @@ export const auth = betterAuth({
     session: {
       create: {
         before: async (session) => {
-          const [row] = await db!
+          const [row] = await db
             .select({ role: schema.user.role })
             .from(schema.user)
             .where(eq(schema.user.id, session.userId))

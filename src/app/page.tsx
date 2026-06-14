@@ -5,17 +5,14 @@ import {
     SidebarInset,
     SidebarProvider,
 } from "@/components/ui/sidebar";
-import { requireSessionOrRedirect } from "@/lib/auth-guards";
-import { hasAdmin } from "@/lib/users";
-import { getSystemReadiness } from "@/lib/system-readiness";
+import { entryDestination } from "@/lib/entry-cascade";
 
 // Reads runtime DB/session state, so it must not be statically prerendered.
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-    if (!(await getSystemReadiness()).ready) redirect("/preflight");
-    if (!(await hasAdmin())) redirect("/setup");
-    await requireSessionOrRedirect();
+    const dest = await entryDestination();
+    if (dest) redirect(dest);
 
     return (
         <SidebarProvider>
