@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Field, FieldGroup, FieldLabel, FieldError } from "@/components/ui/field";
-import Link from "next/link";
 
 function getFriendlyError(message: string, status?: number): string {
   const lower = message.toLowerCase();
@@ -32,6 +33,7 @@ function getFriendlyError(message: string, status?: number): string {
 export function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +43,7 @@ export function SignInForm() {
     setLoading(true);
 
     try {
-      const result = await authClient.signIn.email({ email, password });
+      const result = await authClient.signIn.email({ email, password, rememberMe });
       if (result.error) {
         setError(getFriendlyError(result.error.message ?? "Sign in failed", result.error.status ?? undefined));
       } else {
@@ -56,48 +58,61 @@ export function SignInForm() {
   };
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Sign In</CardTitle>
-        <CardDescription>Sign in to your account</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="email">Email</FieldLabel>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </Field>
-          </FieldGroup>
-          <div className="flex justify-end">
-            <Link href="/auth/forgot-password" className="text-sm text-muted-foreground hover:underline">
-              Forgot password?
-            </Link>
-          </div>
-          {error && <FieldError>{error}</FieldError>}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing in..." : "Sign In"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <div className="bg-card border-border flex w-full max-w-[440px] flex-col gap-6 rounded-2xl border p-12 shadow-[0_8px_30px_rgba(0,0,0,0.07)]">
+      <div className="mb-2 flex flex-col items-center gap-1.5">
+        <div className="bg-primary text-primary-foreground flex size-10 items-center justify-center rounded-xl text-lg font-bold">
+          B
+        </div>
+        <h1 className="text-foreground mt-2 text-xl font-semibold">Welcome back</h1>
+        <p className="text-muted-foreground text-sm">Sign in to your workspace</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <FieldGroup className="gap-6">
+          <Field>
+            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <Input
+              id="email"
+              type="email"
+              placeholder="ana@acme.ai"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="password">Password</FieldLabel>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </Field>
+        </FieldGroup>
+
+        <div className="-mt-2 flex items-center justify-between">
+          <Label htmlFor="remember-me" className="text-[13px] font-normal">
+            <Checkbox
+              id="remember-me"
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(checked === true)}
+            />
+            Remember me
+          </Label>
+          <Link href="/auth/forgot-password" className="text-primary text-[13px]">
+            Forgot password?
+          </Link>
+        </div>
+
+        {error && <FieldError>{error}</FieldError>}
+
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? "Signing in..." : "Sign in"}
+        </Button>
+      </form>
+    </div>
   );
 }
