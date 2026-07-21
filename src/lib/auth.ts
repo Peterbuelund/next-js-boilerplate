@@ -23,7 +23,7 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     maxPasswordLength: 128,
     sendResetPassword: async ({ user, url }) => {
-      // TODO: integrate an email provider (e.g. Resend, Nodemailer)
+      // TODO: send this via an email provider before production
       // For now, log the reset URL so it can be used during development
       console.log(`Password reset link for ${user.email}: ${url}`);
     },

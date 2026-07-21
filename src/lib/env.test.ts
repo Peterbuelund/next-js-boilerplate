@@ -10,7 +10,6 @@ const valid = {
   POSTGRES_URL: "postgres://user:pass@localhost:5432/app",
   BETTER_AUTH_SECRET: "super-secret",
   NEXT_PUBLIC_APP_URL: "https://app.example.com",
-  BLOB_READ_WRITE_TOKEN: "vercel_blob_token",
   NODE_ENV: "production",
 };
 
@@ -31,7 +30,6 @@ describe("parseEnv", () => {
       POSTGRES_URL: "postgres://user:pass@localhost:5432/app",
       BETTER_AUTH_SECRET: "super-secret",
       NEXT_PUBLIC_APP_URL: "https://app.example.com",
-      BLOB_READ_WRITE_TOKEN: "vercel_blob_token",
       NODE_ENV: "production",
     });
   });
@@ -59,10 +57,5 @@ describe("parseEnv", () => {
     expect(() => parseEnv(omit(valid, "NEXT_PUBLIC_APP_URL"))).toThrow(
       /NEXT_PUBLIC_APP_URL/,
     );
-  });
-
-  it("treats BLOB_READ_WRITE_TOKEN as optional (undefined, still valid)", () => {
-    const env = parseEnv(omit(valid, "BLOB_READ_WRITE_TOKEN"));
-    expect(env.BLOB_READ_WRITE_TOKEN).toBeUndefined();
   });
 });

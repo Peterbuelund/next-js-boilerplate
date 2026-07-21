@@ -10,14 +10,23 @@ A clean Next.js boilerplate with authentication, role-based access, and an admin
 - **Database**: PostgreSQL via Drizzle ORM (`postgres-js`)
 - **Auth**: Better Auth (email & password, role-based access)
 
+> **Pinned versions**: ESLint stays on 9 and TypeScript on 5. ESLint 10 and TS 7 both
+> work, but `eslint-config-next`'s toolchain isn't compatible yet — `eslint-plugin-react`
+> uses APIs removed in ESLint 10, and `typescript-eslint` caps its peer at `typescript <6.1.0`
+> and crashes on TS 7. Bump both once `eslint-config-next` supports them.
+
 ## Features
 
 - **Email & password auth** — sign-up, sign-in, forgot password, and reset password flows.
   > Password reset logs the reset URL to the server console. Wire up an email provider
-  > (Resend, Nodemailer, …) in `src/lib/auth.ts` before going to production.
+  > in `src/lib/auth.ts` before going to production.
 - **Role-based access** — every user is `user`, `admin`, or `disabled`. Roles are re-read
   from the database on each privileged request, so changes take effect immediately.
   Setting a user to `disabled` rejects sign-in and destroys existing sessions.
+- **Preflight readiness gate** — before anything else, every entry-point page checks
+  that the database is reachable and its schema migrated. Until it is, all pages redirect
+  to `/preflight`, which shows a live checklist (backed by `/api/diagnostics`) and
+  continues automatically once the system is ready.
 - **First-run setup** — on a fresh install with no admin, every page redirects
   to `/setup` where you create the first administrator interactively.
 - **Admin panel** (`/admin`, admin-only) — add, edit, and delete users; change roles.
@@ -52,7 +61,13 @@ The app runs on `http://localhost:3000`.
 ## Environment Variables
 
 All variables are documented in `.env.example` — copy it to `.env.local` and fill in the values.
-`POSTGRES_URL` and `BETTER_AUTH_SECRET` are required; the app won't boot without them.
+The contract is validated once at boot by `src/lib/env.ts`; a missing or malformed variable
+crashes the process immediately (there is no `SKIP_ENV_VALIDATION` bypass).
+
+- `POSTGRES_URL` — **required**. Postgres connection string.
+- `BETTER_AUTH_SECRET` — **required**. Better Auth signing secret.
+- `NEXT_PUBLIC_APP_URL` — **required in production**; defaults to `http://localhost:3000` in
+  development. The app's public origin, used for auth callbacks and absolute links.
 
 ## Scripts
 
@@ -76,19 +91,24 @@ src/
   app/
     admin/          # Admin user-management panel (admin-only)
     auth/           # Sign-in, sign-up, forgot/reset password pages
+    preflight/      # System-readiness gate (shown until the DB is ready)
     setup/          # First-run setup page (creates the first admin)
     api/
       auth/         # Better Auth catch-all route handler
-      diagnostics/  # Dev-only diagnostics endpoint
+      diagnostics/  # Public readiness endpoint (backs the preflight checklist)
     page.tsx        # Dashboard / home
     layout.tsx      # Root layout
   lib/
-    auth.ts         # Better Auth server config
-    auth-client.ts  # Better Auth browser client
-    auth-guards.ts  # requireSession* / requireAdmin* access guards
-    db.ts           # Drizzle client
-    schema.ts       # Database schema
-    users.ts        # User provisioning module
+    auth.ts             # Better Auth server config
+    auth-client.ts      # Better Auth browser client
+    auth-guards.ts      # requireSession* / requireAdmin* access guards
+    db.ts               # Drizzle client
+    schema.ts           # Database schema
+    user-schema.ts      # Shared user validation schemas (zod)
+    users.ts            # User provisioning module
+    env.ts              # Environment contract (validated once at boot)
+    entry-cascade.ts    # Resolves preflight → setup → sign-in redirects
+    system-readiness.ts # Runtime DB readiness probe
 ```
 
 ## Deployment

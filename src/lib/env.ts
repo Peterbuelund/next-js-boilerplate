@@ -32,10 +32,6 @@ const envSchema = z
       .url("NEXT_PUBLIC_APP_URL must be a valid URL")
       .optional(),
 
-    // Vercel Blob token. Optional: only the features that talk to Blob need it,
-    // so its absence must not stop the server from booting.
-    BLOB_READ_WRITE_TOKEN: z.string().optional(),
-
     // Standard Node lifecycle flag. Defaults to development so a bare local
     // environment behaves as a dev environment.
     NODE_ENV: z
