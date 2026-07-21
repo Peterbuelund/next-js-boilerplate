@@ -1,4 +1,5 @@
-# CRITICAL RULES - MUST FOLLOW
+## PROJECT REFERENCE
+- See `README.md` for setup, env vars, scripts, structure, and deployment.
 
 ## RESPONSES
 - Keep responses concise and to the point - unless the user asks otherwise
@@ -11,4 +12,3 @@
 
 ## DATABASE SCHEMA CHANGES
 - Whenever you make changes to the database schema, ALWAYS run the drizzle generate and migrate commands
-- NEVER run drizzle push!

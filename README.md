@@ -35,13 +35,12 @@ A clean Next.js boilerplate with authentication, role-based access, and an admin
 pnpm install
 
 # 2. Copy the example env file and fill in the values (see Environment Variables below)
-cp src/.env.example .env.local
+cp .env.example .env.local
 
 # 3. Start a local Postgres instance
 docker compose up -d
 
-# 4. Generate and apply database migrations
-pnpm db:generate
+# 4. Apply database migrations
 pnpm db:migrate
 
 # 5. Start the dev server
@@ -52,19 +51,8 @@ The app runs on `http://localhost:3000`.
 
 ## Environment Variables
 
-Create `.env.local` at the project root with these variables:
-
-```env
-# Database (matches docker-compose.yml defaults)
-POSTGRES_URL=postgresql://dev_user:dev_password@localhost:5432/postgres_dev
-
-# Better Auth — generate a 32+ character random secret
-BETTER_AUTH_SECRET=<your-random-secret>
-
-# Public URL (used by Better Auth for callbacks)
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-
-```
+All variables are documented in `.env.example` — copy it to `.env.local` and fill in the values.
+`POSTGRES_URL` and `BETTER_AUTH_SECRET` are required; the app won't boot without them.
 
 ## Scripts
 
