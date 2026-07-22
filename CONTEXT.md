@@ -35,7 +35,7 @@ The set of environment variables the app requires to boot, validated once at mod
 _Avoid_: config check, env guard, settings
 
 **Readiness probe**:
-The single runtime check of database state — a `SELECT 1` ping plus a `user`-table touch under a 5s timeout — exposed by `probeReadiness()` as a structured `ReadinessReport` (`connected`, `schemaApplied`, `error?`). Both consumers project from it: **Preflight**'s boolean gate via `getSystemReadiness()` / `isReady()`, and the `/api/diagnostics` payload the checklist renders. One probe, never two.
+The single runtime check of database state — a `SELECT 1` ping plus a `user`-table touch under a 5s timeout — exposed by `probeReadiness()` as a structured `ReadinessReport` (`connected`, `schemaApplied`) — pure state, no operator messages. Two pure projections read from it: `isReady()`, **Preflight**'s boolean gate (via `getSystemReadiness()`); and `readinessChecklist()`, which maps the report to operator-facing steps (label + remediation) that the `/api/diagnostics` payload serializes and the checklist renders. Operator remediation copy lives in `readinessChecklist` alone. One probe, never two.
 _Avoid_: health check, ping, heartbeat
 
 **Preflight**:
@@ -51,7 +51,7 @@ A server-side check that gates a request by **Session** (`requireSession*`) or *
 _Avoid_: middleware, auth check, gate
 
 **Entry cascade**:
-The ordered sequence of gates every entry-point page runs before rendering: **Preflight** → **First-run setup** → **Sign in**. Resolved by a single pure module (`resolveEntry`) that, given the current system state and the requesting path, returns the destination to redirect to or signals "stay". Each entry-point page is a thin adapter: read state, call `resolveEntry`, redirect. The **Environment contract** is _not_ part of the cascade — env is guaranteed present by the time any page runs, so the cascade's first question is Preflight (runtime DB readiness).
+The ordered sequence of gates every entry-point page runs before rendering: **Preflight** → **First-run setup** → **Sign in**. Resolved by two pure functions: `resolveEntry` maps the current system state to a destination in that fixed order (short-circuiting — a down DB never probes further), and `reconcile` compares that destination against the requesting path to signal "stay" (render this page) or a redirect target. Each entry-point page is a one-line adapter: `enforceEntry(path)`. The **Environment contract** is _not_ part of the cascade — env is guaranteed present by the time any page runs, so the cascade's first question is Preflight (runtime DB readiness).
 _Avoid_: routing guard, middleware, redirect chain
 
 ### Provisioning

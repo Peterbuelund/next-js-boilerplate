@@ -1,13 +1,11 @@
-import { redirect } from "next/navigation";
 import { SetupChecklist } from "@/components/setup-checklist";
-import { entryDestination } from "@/lib/entry-cascade";
+import { enforceEntry } from "@/lib/entry-cascade";
 
 // Reads runtime DB/env state, so it must not be statically prerendered.
 export const dynamic = "force-dynamic";
 
 export default async function PreflightPage() {
-  const dest = await entryDestination();
-  if (dest !== "/preflight") redirect(dest ?? "/");
+  await enforceEntry("/preflight");
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">

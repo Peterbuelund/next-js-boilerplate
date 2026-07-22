@@ -2,15 +2,30 @@ import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/schema";
 
-// A structured view of runtime database readiness, the single source of truth
-// behind both the boolean Entry-cascade gate and the diagnostics payload.
-// `connected` is the `SELECT 1` ping; `schemaApplied` is whether the `user`
-// table is queryable (i.e. migrations ran); `error` is an operator-facing
-// message present only when the system is not ready.
+// A structured view of runtime database readiness — PURE STATE, no operator
+// messages. `connected` is the `SELECT 1` ping; `schemaApplied` is whether the
+// `user` table is queryable (i.e. migrations ran). Operator-facing remediation
+// copy lives solely in `readinessChecklist` below, never on the report.
 export type ReadinessReport = {
   connected: boolean; // SELECT 1 succeeded
   schemaApplied: boolean; // the `user` table is queryable (migrations ran)
-  error?: string; // operator-facing message when not ready
+};
+
+// One operator-facing checklist row: a stable key, a human label, its ok flag,
+// and — only when failing — the remediation to run.
+export type ReadinessStep = {
+  key: string;
+  label: string;
+  ok: boolean;
+  detail?: string;
+};
+
+// The `/api/diagnostics` wire contract: the checklist steps the /preflight page
+// renders, plus a proceed flag and the check timestamp.
+export type DiagnosticsPayload = {
+  timestamp: string;
+  ready: boolean;
+  steps: ReadinessStep[];
 };
 
 /**
@@ -22,23 +37,56 @@ export function isReady(report: ReadinessReport): boolean {
   return report.connected && report.schemaApplied;
 }
 
+// Build one checklist row, attaching the remediation only when the check fails.
+function step(
+  key: string,
+  label: string,
+  ok: boolean,
+  remediation: string,
+): ReadinessStep {
+  return ok ? { key, label, ok } : { key, label, ok, detail: remediation };
+}
+
+/**
+ * Project a `ReadinessReport` into the operator-facing checklist the /preflight
+ * page renders — one step per runtime check, each carrying its OWN remediation
+ * when failing (so a down DB still shows the schema step its migrate hint, not
+ * the connection message). This is the SINGLE home for operator remediation
+ * copy; the report itself is pure state. Pure: no DB, no timeout.
+ */
+export function readinessChecklist(report: ReadinessReport): ReadinessStep[] {
+  return [
+    step(
+      "db-connected",
+      "Database connected",
+      report.connected,
+      "Database not connected. Start your PostgreSQL database and verify POSTGRES_URL in .env",
+    ),
+    step(
+      "db-schema",
+      "Database schema applied",
+      report.schemaApplied,
+      "Run: pnpm db:migrate",
+    ),
+  ];
+}
+
 /**
  * The single runtime DB readiness probe.
  *
  * Environment is validated at boot (see `env.ts`), so this probe is concerned
  * solely with runtime database state. The DB work runs under a 5s timeout race
  * so an unreachable database can never hang the caller. This function never
- * throws: every failure is folded into a `ReadinessReport`.
+ * throws: every failure is folded into a `ReadinessReport` of pure booleans.
  *
  * - `SELECT 1` fails (or the race times out) -> not connected, not applied.
  * - `SELECT 1` succeeds but the `user`-table touch fails -> connected, schema
  *   not applied (migrations likely haven't run).
- * - both succeed -> connected and schema applied, no error.
+ * - both succeed -> connected and schema applied.
  */
 export async function probeReadiness(): Promise<ReadinessReport> {
   try {
     let schemaApplied = false;
-    let schemaError: string | undefined;
 
     const dbCheckPromise = (async () => {
       // Ping DB - this will actually attempt to connect.
@@ -53,9 +101,8 @@ export async function probeReadiness(): Promise<ReadinessReport> {
         schemaApplied = true;
       } catch {
         // A reachable DB whose `user` table is unqueryable almost always means
-        // migrations haven't run; surface that rather than the connect message.
+        // migrations haven't run. The remediation lives in `readinessChecklist`.
         schemaApplied = false;
-        schemaError = "Schema not applied. Run: pnpm db:migrate";
       }
     })();
 
@@ -67,16 +114,9 @@ export async function probeReadiness(): Promise<ReadinessReport> {
 
     // Reaching here means the ping succeeded (it's the only path that resolves
     // the race); only the schema touch can still be outstanding.
-    return schemaApplied
-      ? { connected: true, schemaApplied: true }
-      : { connected: true, schemaApplied: false, error: schemaError };
+    return { connected: true, schemaApplied };
   } catch {
-    return {
-      connected: false,
-      schemaApplied: false,
-      error:
-        "Database not connected. Please start your PostgreSQL database and verify your POSTGRES_URL in .env",
-    };
+    return { connected: false, schemaApplied: false };
   }
 }
 

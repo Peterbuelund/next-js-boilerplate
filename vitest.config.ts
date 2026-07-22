@@ -10,7 +10,7 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
     env: {
       POSTGRES_URL: "postgresql://test:test@localhost:5432/test",
-      BETTER_AUTH_SECRET: "test-secret-value",
+      BETTER_AUTH_SECRET: "test-secret-value-at-least-32-characters",
     },
   },
   // Mirror the tsconfig `@/*` -> `src/*` path alias so tests can import modules

@@ -27,6 +27,8 @@ Thumbs.db
 *.swo
 *~
 .claude/
+.agents/
+skills-lock.json
 
 # Logs
 *.log

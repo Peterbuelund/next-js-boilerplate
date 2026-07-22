@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { entryDestination } from "@/lib/entry-cascade";
+import { enforceEntry } from "@/lib/entry-cascade";
 import { FirstRunSetupForm } from "@/components/auth/first-run-setup-form";
 
 // Depends on runtime DB state (whether an Admin exists), so it must not be
@@ -7,8 +6,7 @@ import { FirstRunSetupForm } from "@/components/auth/first-run-setup-form";
 export const dynamic = "force-dynamic";
 
 export default async function SetupPage() {
-  const dest = await entryDestination();
-  if (dest !== "/setup") redirect(dest ?? "/");
+  await enforceEntry("/setup");
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">

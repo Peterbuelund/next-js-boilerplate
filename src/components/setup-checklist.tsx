@@ -3,16 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-type DiagnosticsResponse = {
-  timestamp: string;
-  database: {
-    connected: boolean;
-    schemaApplied: boolean;
-    error?: string;
-  };
-  overallStatus: "ok" | "error";
-};
+import type { DiagnosticsPayload } from "@/lib/system-readiness";
 
 function StatusIcon({ ok }: { ok: boolean }) {
   return ok ? (
@@ -27,7 +18,7 @@ function StatusIcon({ ok }: { ok: boolean }) {
 }
 
 export function SetupChecklist() {
-  const [data, setData] = useState<DiagnosticsResponse | null>(null);
+  const [data, setData] = useState<DiagnosticsPayload | null>(null);
   // Starts true: the mount effect below always kicks off a fetch.
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +26,7 @@ export function SetupChecklist() {
   const fetchDiagnostics = useCallback(async (signal?: AbortSignal) => {
     const res = await fetch("/api/diagnostics", { cache: "no-store", signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return (await res.json()) as DiagnosticsResponse;
+    return (await res.json()) as DiagnosticsPayload;
   }, []);
 
   // Manual "Re-check" handler — an event handler, so synchronous setState here
@@ -66,27 +57,9 @@ export function SetupChecklist() {
     return () => controller.abort();
   }, [fetchDiagnostics]);
 
-  const steps = [
-    {
-      key: "db-connected",
-      label: "Database connected",
-      ok: !!data?.database.connected,
-      detail: !data?.database.connected
-        ? data?.database.error
-          ? `Error: ${data.database.error}`
-          : "Database not connected. Start your PostgreSQL database and verify POSTGRES_URL"
-        : undefined,
-    },
-    {
-      key: "db-schema",
-      label: "Database schema applied",
-      ok: !!data?.database.schemaApplied,
-      detail: !data?.database.schemaApplied
-        ? "Run: pnpm db:migrate"
-        : undefined,
-    },
-  ] as const;
-
+  // The checklist rows come straight from the server projection; the client is
+  // a dumb renderer and owns no labels or remediation of its own.
+  const steps = data?.steps ?? [];
   const completed = steps.filter((s) => s.ok).length;
 
   return (
@@ -109,7 +82,7 @@ export function SetupChecklist() {
         {steps.map((s) => (
           <li key={s.key} className="flex items-start gap-2">
             <div className="mt-0.5">
-              <StatusIcon ok={Boolean(s.ok)} />
+              <StatusIcon ok={s.ok} />
             </div>
             <div>
               <div className="font-medium">{s.label}</div>
@@ -121,7 +94,7 @@ export function SetupChecklist() {
         ))}
       </ul>
 
-      {data?.overallStatus === "ok" ? (
+      {data?.ready ? (
         <div className="mt-4">
           <p className="text-sm text-muted-foreground mb-2">
             Everything looks good.

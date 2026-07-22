@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { entryDestination } from "@/lib/entry-cascade";
+import { enforceEntry } from "@/lib/entry-cascade";
 import { SignInForm } from "@/components/auth/sign-in-form";
 
 // Depends on runtime DB state (whether an Admin exists), so it must not be
@@ -7,8 +6,7 @@ import { SignInForm } from "@/components/auth/sign-in-form";
 export const dynamic = "force-dynamic";
 
 export default async function SignInPage() {
-  const dest = await entryDestination();
-  if (dest !== "/auth/sign-in") redirect(dest ?? "/");
+  await enforceEntry("/auth/sign-in");
 
   return (
     <div

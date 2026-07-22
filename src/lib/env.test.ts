@@ -8,7 +8,7 @@ import { parseEnv } from "./env";
 // deterministic and never depend on the machine they run on.
 const valid = {
   POSTGRES_URL: "postgres://user:pass@localhost:5432/app",
-  BETTER_AUTH_SECRET: "super-secret",
+  BETTER_AUTH_SECRET: "a-sufficiently-long-secret-of-32+-characters",
   NEXT_PUBLIC_APP_URL: "https://app.example.com",
   NODE_ENV: "production",
 };
@@ -28,7 +28,7 @@ describe("parseEnv", () => {
     const env = parseEnv(valid);
     expect(env).toMatchObject({
       POSTGRES_URL: "postgres://user:pass@localhost:5432/app",
-      BETTER_AUTH_SECRET: "super-secret",
+      BETTER_AUTH_SECRET: "a-sufficiently-long-secret-of-32+-characters",
       NEXT_PUBLIC_APP_URL: "https://app.example.com",
       NODE_ENV: "production",
     });
@@ -42,6 +42,12 @@ describe("parseEnv", () => {
     expect(() => parseEnv(omit(valid, "BETTER_AUTH_SECRET"))).toThrow(
       /BETTER_AUTH_SECRET/,
     );
+  });
+
+  it("throws when BETTER_AUTH_SECRET is shorter than 32 characters", () => {
+    expect(() =>
+      parseEnv({ ...valid, BETTER_AUTH_SECRET: "too-short" }),
+    ).toThrow(/at least 32 characters/);
   });
 
   it("defaults NEXT_PUBLIC_APP_URL to localhost when omitted in development", () => {

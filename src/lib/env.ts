@@ -23,8 +23,13 @@ const envSchema = z
     // the driver is the authority on what a valid DSN looks like.
     POSTGRES_URL: z.string().min(1, "POSTGRES_URL is required"),
 
-    // Better Auth signing secret. Non-empty is the only contract we enforce here.
-    BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
+    // Better Auth signing secret. We require at least 32 characters (Better
+    // Auth's recommended length, e.g. `openssl rand -base64 32`) so a copied
+    // project with the short `.env.example` placeholder fails fast at boot
+    // rather than booting with a weak, guessable secret.
+    BETTER_AUTH_SECRET: z
+      .string()
+      .min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
 
     // The app's public origin. Parsed as an optional URL here; the
     // production-required / dev-defaulted behaviour is applied in `superRefine`.

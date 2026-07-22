@@ -1,18 +1,16 @@
-import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Header } from "@/components/layout/header";
 import {
     SidebarInset,
     SidebarProvider,
 } from "@/components/ui/sidebar";
-import { entryDestination } from "@/lib/entry-cascade";
+import { enforceEntry } from "@/lib/entry-cascade";
 
 // Reads runtime DB/session state, so it must not be statically prerendered.
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-    const dest = await entryDestination();
-    if (dest) redirect(dest);
+    await enforceEntry("/");
 
     return (
         <SidebarProvider>

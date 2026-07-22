@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { resolveEntry } from "./entry-cascade";
+import { resolveEntry, reconcile } from "./entry-cascade";
 
 // `resolveEntry` is the pure heart of the entry gate: it decides where a fresh
 // request must go from three boolean probes, with no DB, env, or Next headers.
@@ -71,5 +71,34 @@ describe("resolveEntry", () => {
     expect(dest).toBe("/preflight");
     expect(adminCalled).toBe(false);
     expect(sessionCalled).toBe(false);
+  });
+});
+
+// `reconcile` is the second pure invariant: given a resolved destination and the
+// page actually being requested, it returns `null` to stay/render or the path to
+// redirect to. A `null` destination (proceed) maps to the app root `/`.
+describe("reconcile", () => {
+  it("stays (null) when the page already matches the destination", () => {
+    expect(reconcile("/preflight", "/preflight")).toBeNull();
+    expect(reconcile("/setup", "/setup")).toBeNull();
+    expect(reconcile("/auth/sign-in", "/auth/sign-in")).toBeNull();
+  });
+
+  it("stays (null) on the dashboard when the system says proceed", () => {
+    expect(reconcile(null, "/")).toBeNull();
+  });
+
+  it("redirects to the destination when the request is on the wrong page", () => {
+    expect(reconcile("/setup", "/preflight")).toBe("/setup");
+    expect(reconcile("/auth/sign-in", "/setup")).toBe("/auth/sign-in");
+  });
+
+  it("bounces a proceed (null) destination off a gate page to the app root", () => {
+    expect(reconcile(null, "/setup")).toBe("/");
+    expect(reconcile(null, "/preflight")).toBe("/");
+  });
+
+  it("bounces the dashboard to the gate when the system isn't ready", () => {
+    expect(reconcile("/preflight", "/")).toBe("/preflight");
   });
 });
