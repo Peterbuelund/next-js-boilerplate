@@ -10,10 +10,31 @@ A clean Next.js boilerplate with authentication, role-based access, and an admin
 - **Database**: PostgreSQL via Drizzle ORM (`postgres-js`)
 - **Auth**: Better Auth (email & password, role-based access)
 
-> **Pinned versions**: ESLint stays on 9 and TypeScript on 5. ESLint 10 and TS 7 both
-> work, but `eslint-config-next`'s toolchain isn't compatible yet — `eslint-plugin-react`
-> uses APIs removed in ESLint 10, and `typescript-eslint` caps its peer at `typescript <6.1.0`
-> and crashes on TS 7. Bump both once `eslint-config-next` supports them.
+> **Pinned versions**: TypeScript stays on 6 and ESLint on 9, though 7 and 10 are the
+> current `latest`. Both ceilings come from `eslint-config-next`'s own dependencies —
+> verified against TypeScript 7.0.2 and ESLint 10.8.0 (2026-08-05):
+>
+> - **TypeScript 7**: blocked by `typescript-eslint`, which caps its peer at
+>   `typescript <6.1.0` ([#12518](https://github.com/typescript-eslint/typescript-eslint/issues/12518)).
+>   TS 7.0 ships no JavaScript compiler API at all — that lands in 7.1 — so `typescript-estree`
+>   dies at load with `Cannot read properties of undefined (reading 'Cjs')`. Note that
+>   `tsc --noEmit` and `next build` both pass on TS 7: [Next.js shells out to the project-local
+>   `tsc` CLI](https://nextjs.org/docs/app/api-reference/config/typescript#using-typescript-7)
+>   rather than calling the API, so it only needs to *run* the compiler. Type-aware lint rules
+>   have to *query* the type graph, which is what the missing API provided. Linting is the only
+>   thing that breaks.
+> - **ESLint 10**: `typescript-eslint` now accepts `eslint ^10`, so it is no longer a blocker.
+>   `eslint-plugin-react@7.37.5` — the latest publish — is: it calls `context.getFilename()`,
+>   removed in ESLint 10, giving `contextOrFilename.getFilename is not a function`.
+>
+> Microsoft publishes `@typescript/typescript6`, a shim that serves the TS 6 API to tools
+> while `tsc` runs the Go compiler. It does **not** work here: pnpm resolves the
+> `typescript` peer from the root, so the shim can't be scoped to the linter alone
+> (`overrides` and `packageExtensions` both fail to redirect it), and aliasing it as the
+> root `typescript` makes `next build` reject it — Next requires the real package name.
+>
+> Revisit when TypeScript 7.1 ships the new API and `typescript-eslint` widens its peer
+> range, and when `eslint-config-next` bumps `eslint-plugin-react` past 7.37.5.
 
 ## Features
 

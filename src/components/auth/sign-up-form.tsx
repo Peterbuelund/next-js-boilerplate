@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldGroup, FieldLabel, FieldError } from "@/components/ui/field";
 
 export function SignUpForm() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +27,10 @@ export function SignUpForm() {
         email,
         password,
       });
-      window.location.href = "/";
+      router.push("/");
+      // Drop the cached RSC payload so the session-guarded pages re-render
+      // against the cookie that sign-up just set.
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign up failed");
     } finally {

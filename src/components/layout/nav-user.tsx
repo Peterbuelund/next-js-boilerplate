@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ChevronsUpDown, LogOut, Settings } from "lucide-react"
 
 import { authClient } from "@/lib/auth-client"
@@ -42,6 +43,7 @@ export function NavUser({
   }
 } = {}) {
   const { isMobile } = useSidebar()
+  const router = useRouter()
   const { data: session } = authClient.useSession()
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -99,7 +101,10 @@ export function NavUser({
 
   const handleSignOut = async () => {
     await authClient.signOut()
-    window.location.href = "/auth/sign-in"
+    router.push("/auth/sign-in")
+    // Drop the cached RSC payload so no signed-in server render survives the
+    // sign-out in the client-side Router Cache.
+    router.refresh()
   }
 
   return (

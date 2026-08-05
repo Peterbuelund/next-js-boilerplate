@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DiagnosticsPayload } from "@/lib/system-readiness";
@@ -18,6 +19,7 @@ function StatusIcon({ ok }: { ok: boolean }) {
 }
 
 export function SetupChecklist() {
+  const router = useRouter();
   const [data, setData] = useState<DiagnosticsPayload | null>(null);
   // Starts true: the mount effect below always kicks off a fetch.
   const [loading, setLoading] = useState(true);
@@ -102,7 +104,10 @@ export function SetupChecklist() {
           <Button
             className="w-full"
             onClick={() => {
-              window.location.href = "/";
+              router.push("/");
+              // Readiness changed server-side since this page loaded, so drop
+              // the cached RSC payload the entry gate was rendered from.
+              router.refresh();
             }}
           >
             Continue

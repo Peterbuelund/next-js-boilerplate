@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { createFirstAdminAction } from "@/app/setup/actions";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldGroup, FieldLabel, FieldError } from "@/components/ui/field";
 
 export function FirstRunSetupForm() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,10 +37,14 @@ export function FirstRunSetupForm() {
       // silently bouncing off the session-guarded home page.
       const result = await authClient.signIn.email({ email, password });
       if (result.error) {
-        window.location.href = "/auth/sign-in";
+        router.push("/auth/sign-in");
+        router.refresh();
         return;
       }
-      window.location.href = "/";
+      router.push("/");
+      // Drop the cached RSC payload so the session-guarded pages re-render
+      // against the cookie that sign-in just set.
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Setup failed");
     } finally {

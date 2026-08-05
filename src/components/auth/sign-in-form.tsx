@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ function getFriendlyError(message: string, status?: number): string {
 }
 
 export function SignInForm() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -47,7 +49,10 @@ export function SignInForm() {
       if (result.error) {
         setError(getFriendlyError(result.error.message ?? "Sign in failed", result.error.status ?? undefined));
       } else {
-        window.location.href = "/";
+        router.push("/");
+        // Drop the cached RSC payload so the session-guarded pages re-render
+        // against the cookie that sign-in just set.
+        router.refresh();
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Sign in failed";
