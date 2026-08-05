@@ -44,7 +44,7 @@ A clean Next.js boilerplate with authentication, role-based access, and an admin
 pnpm install
 
 # 2. Copy the example env file and fill in the values (see Environment Variables below)
-cp .env.example .env.local
+cp .env.example .env
 
 # 3. Start a local Postgres instance
 docker compose up -d
@@ -60,7 +60,9 @@ The app runs on `http://localhost:3000`.
 
 ## Environment Variables
 
-All variables are documented in `.env.example` — copy it to `.env.local` and fill in the values.
+All variables are documented in `.env.example` — copy it to `.env` and fill in the values.
+Use `.env` (not `.env.local`) so the drizzle-kit CLI picks the values up too; Next.js reads
+both, but drizzle-kit only auto-loads `.env`.
 The contract is validated once at boot by `src/lib/env.ts`; a missing or malformed variable
 crashes the process immediately (there is no `SKIP_ENV_VALIDATION` bypass).
 

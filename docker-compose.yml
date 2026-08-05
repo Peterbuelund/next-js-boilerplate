@@ -8,3 +8,8 @@ services:
       POSTGRES_PASSWORD: dev_password
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+volumes:
+  postgres_data:

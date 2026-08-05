@@ -3,17 +3,11 @@ node_modules/
 
 # Build outputs
 .next/
-frontend/.next/
-frontend/out/
-backend/__pycache__/
-backend/*.pyc
 
 # Environment variables
 .env
 .env.local
 .env*.local
-frontend/.env.local
-backend/.env
 
 # OS
 .DS_Store
@@ -37,11 +31,9 @@ yarn-debug.log*
 
 # TypeScript
 *.tsbuildinfo
-frontend/next-env.d.ts
 
 # Testing
 coverage/
-.pytest_cache/
 
 # Production
 build/
