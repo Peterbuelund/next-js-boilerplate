@@ -1,10 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { DiagnosticsPayload } from "@/lib/system-readiness";
+import type {
+  DiagnosticsPayload,
+  ReadinessStep,
+} from "@/lib/system-readiness";
 
 function StatusIcon({ ok }: { ok: boolean }) {
   return ok ? (
@@ -18,18 +25,33 @@ function StatusIcon({ ok }: { ok: boolean }) {
   );
 }
 
+// The browser's origin cannot change without a full page load, so there is
+// never anything to notify React about; the store is read-once by definition.
+const subscribeToNothing = () => () => {};
+
+// True when `NEXT_PUBLIC_APP_URL` agrees with the origin actually being served.
+// An unset value is NOT a failure: `env.ts` defaults it to localhost on the
+// server, so an absent public var leaves the client nothing to compare against.
+function checkOrigin(): boolean {
+  const configured = process.env.NEXT_PUBLIC_APP_URL;
+  if (!configured) return true;
+  try {
+    return new URL(configured).origin === window.location.origin;
+  } catch {
+    return false; // unparseable value — a misconfiguration either way
+  }
+}
+
 type SetupChecklistProps = {
-  // How the operator leaves the checklist once everything is green. Injectable
-  // because the recovery action differs by host: standing on a page, the fix is
-  // to navigate home; inside an error boundary there is no page to navigate
-  // away from — the boundary must re-render the subtree it caught (`reset`).
-  // Hardcoding router.push there would leave the boundary mounted over a route
-  // that never re-attempted its render.
-  onContinue?: () => void;
+  // How the operator leaves the checklist once everything is green. Injected
+  // rather than hardcoded as a navigation: the only host is an error boundary,
+  // where there is no page to navigate away from — the boundary must re-render
+  // the subtree it caught (`reset`). A router.push here would leave the
+  // boundary mounted over a route that never re-attempted its render.
+  onContinue: () => void;
 };
 
-export function SetupChecklist({ onContinue }: SetupChecklistProps = {}) {
-  const router = useRouter();
+export function SetupChecklist({ onContinue }: SetupChecklistProps) {
   const [data, setData] = useState<DiagnosticsPayload | null>(null);
   // Starts true: the mount effect below always kicks off a fetch.
   const [loading, setLoading] = useState(true);
@@ -69,16 +91,44 @@ export function SetupChecklist({ onContinue }: SetupChecklistProps = {}) {
     return () => controller.abort();
   }, [fetchDiagnostics]);
 
-  // The checklist rows come straight from the server projection; the client is
-  // a dumb renderer and owns no labels or remediation of its own.
-  const steps = data?.steps ?? [];
+  // The ONE check the server cannot make. `NEXT_PUBLIC_APP_URL` becomes Better
+  // Auth's `baseURL`, so when it disagrees with the origin the browser is
+  // actually on — wrong port, a proxy in front, a deployed build still naming
+  // localhost — sign-in callbacks and cookies fail in ways that surface as
+  // confusing auth bugs rather than clean errors. Only the browser knows its
+  // own origin, so this row is computed here rather than in `/api/diagnostics`.
+  //
+  // Read through `useSyncExternalStore` rather than an effect: the origin is
+  // immutable browser state, so there is nothing to synchronise INTO React
+  // state, and the server snapshot (`null`) keeps the row off the first paint
+  // instead of flashing red before hydration.
+  const originOk = useSyncExternalStore(
+    subscribeToNothing,
+    checkOrigin,
+    () => null,
+  );
+
+  // Server rows come straight from the server projection; the client owns no
+  // operator copy of its own beyond the origin row above.
+  const steps: ReadinessStep[] = [
+    ...(data?.steps ?? []),
+    ...(originOk === null
+      ? []
+      : [{ key: "app-url", label: "App URL matches origin", ok: originOk }]),
+  ];
   const completed = steps.filter((s) => s.ok).length;
+
+  // Continue appears only when EVERY row is green, server and client alike, so
+  // an all-green checklist and an available button can never disagree. A failing
+  // origin is a real misconfiguration to fix, and "Try again" below is still
+  // there as the unconditional retry.
+  const ready = Boolean(data?.ready) && originOk !== false;
 
   return (
     <div className="p-6 border rounded-lg text-left">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="font-semibold">Setup checklist</h3>
+          <h3 className="font-semibold">Checklist</h3>
           <p className="text-sm text-muted-foreground">
             {completed}/{steps.length} completed
           </p>
@@ -96,34 +146,17 @@ export function SetupChecklist({ onContinue }: SetupChecklistProps = {}) {
             <div className="mt-0.5">
               <StatusIcon ok={s.ok} />
             </div>
-            <div>
-              <div className="font-medium">{s.label}</div>
-              {s.detail ? (
-                <div className="text-sm text-muted-foreground">{s.detail}</div>
-              ) : null}
-            </div>
+            <div className="font-medium">{s.label}</div>
           </li>
         ))}
       </ul>
 
-      {data?.ready ? (
+      {ready ? (
         <div className="mt-4">
           <p className="text-sm text-muted-foreground mb-2">
             Everything looks good.
           </p>
-          <Button
-            className="w-full"
-            onClick={() => {
-              if (onContinue) {
-                onContinue();
-                return;
-              }
-              router.push("/");
-              // Readiness changed server-side since this page loaded, so drop
-              // the cached RSC payload the entry gate was rendered from.
-              router.refresh();
-            }}
-          >
+          <Button className="w-full" onClick={onContinue}>
             Continue
           </Button>
         </div>

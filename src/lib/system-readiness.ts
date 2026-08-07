@@ -7,24 +7,40 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/schema";
+// The migration journal drizzle-kit writes alongside the SQL files. Imported as
+// a module (not read from disk at runtime) so it is inlined at build time: the
+// `drizzle/` folder sits outside `src` and would not otherwise be traced into
+// the server bundle, and a deployed app has no working directory to read from.
+import journal from "../../drizzle/meta/_journal.json";
+
+// How many migrations this build of the code expects to have been applied.
+const EXPECTED_MIGRATIONS = journal.entries.length;
 
 // A structured view of runtime database readiness — PURE STATE, no operator
 // messages. `connected` is the `SELECT 1` ping; `schemaApplied` is whether the
-// `user` table is queryable (i.e. migrations ran). Operator-facing remediation
-// copy lives solely in `readinessChecklist` below, never on the report.
+// `user` table is queryable (i.e. migrations ran at all); `migrationsUpToDate`
+// is whether EVERY migration this build ships has been applied. Operator-facing
+// labels live solely in `readinessChecklist` below, never on the report.
+//
+// The last two are genuinely different failures. `schemaApplied` catches a
+// database that was never migrated. `migrationsUpToDate` catches the far more
+// common one: you pulled code carrying a new migration and forgot to run it, so
+// the `user` table exists (schema check passes) but a column added later does
+// not, and queries throw anyway.
 export type ReadinessReport = {
   connected: boolean; // SELECT 1 succeeded
   schemaApplied: boolean; // the `user` table is queryable (migrations ran)
+  migrationsUpToDate: boolean; // every migration in the journal is applied
 };
 
-// One operator-facing checklist row — a stable key, a human label, its ok flag,
-// and, only when failing, the remediation to run. Rendered by the error
-// boundary's checklist once something has already gone wrong.
+// One operator-facing checklist row — a stable key, a human label and its ok
+// flag. Deliberately carries NO remediation copy: the label plus its status
+// icon is the whole signal, and anything more detailed belongs in the server
+// logs, not in front of a user.
 export type ReadinessStep = {
   key: string;
   label: string;
   ok: boolean;
-  detail?: string;
 };
 
 // The `/api/diagnostics` wire contract: the checklist steps the error
@@ -36,45 +52,43 @@ export type DiagnosticsPayload = {
 };
 
 /**
- * The readiness invariant: the system is ready ONLY when the DB is connected
- * AND the schema has been applied. Pure projection — the interface/test surface
- * for "is the system ready", with no DB of its own.
+ * The readiness invariant: the system is ready ONLY when the DB is connected,
+ * the schema has been applied, and no migration this build ships is still
+ * pending. Pure projection — the interface/test surface for "is the system
+ * ready", with no DB of its own.
  */
 export function isReady(report: ReadinessReport): boolean {
-  return report.connected && report.schemaApplied;
-}
-
-// Build one checklist row, attaching the remediation only when the check fails.
-function step(
-  key: string,
-  label: string,
-  ok: boolean,
-  remediation: string,
-): ReadinessStep {
-  return ok ? { key, label, ok } : { key, label, ok, detail: remediation };
+  return report.connected && report.schemaApplied && report.migrationsUpToDate;
 }
 
 /**
  * Project a `ReadinessReport` into the operator-facing checklist the error
- * boundary renders — one step per runtime check, each carrying its OWN remediation
- * when failing (so a down DB still shows the schema step its migrate hint, not
- * the connection message). This is the SINGLE home for operator remediation
- * copy; the report itself is pure state. Pure: no DB, no timeout.
+ * boundary renders. This is the SINGLE home for the operator-facing labels; the
+ * report itself is pure state. Pure: no DB, no timeout.
+ *
+ * `connected` and `schemaApplied` collapse into ONE row on purpose: they are
+ * the same underlying failure to a reader, who only needs to know whether the
+ * database is usable. Migrations get their own row because it is a genuinely
+ * different fix (run `pnpm db:migrate`) reachable from a perfectly healthy
+ * connection.
+ *
+ * INVARIANT: every row green must mean exactly `isReady`. The Continue button
+ * is gated on that same flag, so any row that does not feed it would let the
+ * checklist read all-green while the button stays hidden, with nothing on
+ * screen explaining why.
  */
 export function readinessChecklist(report: ReadinessReport): ReadinessStep[] {
   return [
-    step(
-      "db-connected",
-      "Database connected",
-      report.connected,
-      "Database not connected. Start your PostgreSQL database and verify POSTGRES_URL in .env",
-    ),
-    step(
-      "db-schema",
-      "Database schema applied",
-      report.schemaApplied,
-      "Run: pnpm db:migrate",
-    ),
+    {
+      key: "database",
+      label: "Database ready",
+      ok: report.connected && report.schemaApplied,
+    },
+    {
+      key: "migrations",
+      label: "Migrations up to date",
+      ok: report.migrationsUpToDate,
+    },
   ];
 }
 
@@ -86,14 +100,17 @@ export function readinessChecklist(report: ReadinessReport): ReadinessStep[] {
  * so an unreachable database can never hang the caller. This function never
  * throws: every failure is folded into a `ReadinessReport` of pure booleans.
  *
- * - `SELECT 1` fails (or the race times out) -> not connected, not applied.
+ * - `SELECT 1` fails (or the race times out) -> nothing is true.
  * - `SELECT 1` succeeds but the `user`-table touch fails -> connected, schema
- *   not applied (migrations likely haven't run).
- * - both succeed -> connected and schema applied.
+ *   not applied (migrations likely never ran).
+ * - schema is there but the journal count exceeds the applied count ->
+ *   connected and applied, but migrations are behind this build of the code.
+ * - all three succeed -> fully ready.
  */
 export async function probeReadiness(): Promise<ReadinessReport> {
   try {
     let schemaApplied = false;
+    let migrationsUpToDate = false;
 
     const dbCheckPromise = (async () => {
       // Ping DB - this will actually attempt to connect.
@@ -108,8 +125,23 @@ export async function probeReadiness(): Promise<ReadinessReport> {
         schemaApplied = true;
       } catch {
         // A reachable DB whose `user` table is unqueryable almost always means
-        // migrations haven't run. The remediation lives in `readinessChecklist`.
+        // migrations haven't run.
         schemaApplied = false;
+      }
+
+      try {
+        // Count what drizzle-kit has actually applied against what this build
+        // ships. A missing bookkeeping table throws and is treated as "behind",
+        // which is correct: no table means nothing was ever applied.
+        const applied = await db.execute<{ count: string }>(
+          sql`SELECT count(*)::text AS count FROM drizzle.__drizzle_migrations`,
+        );
+        // `>=` rather than `===`: a database migrated by a NEWER deployment than
+        // the one serving this request is ahead, not broken, and rolling
+        // instances would otherwise flap red mid-deploy.
+        migrationsUpToDate = Number(applied[0]?.count ?? 0) >= EXPECTED_MIGRATIONS;
+      } catch {
+        migrationsUpToDate = false;
       }
     })();
 
@@ -119,10 +151,14 @@ export async function probeReadiness(): Promise<ReadinessReport> {
 
     await Promise.race([dbCheckPromise, timeoutPromise]);
 
-    // Reaching here means the ping succeeded (it's the only path that resolves
-    // the race); only the schema touch can still be outstanding.
-    return { connected: true, schemaApplied };
+    // The race resolves only once `dbCheckPromise` has fully settled, so both
+    // inner checks have finished; the timeout path rejects into the catch.
+    return { connected: true, schemaApplied, migrationsUpToDate };
   } catch {
-    return { connected: false, schemaApplied: false };
+    return {
+      connected: false,
+      schemaApplied: false,
+      migrationsUpToDate: false,
+    };
   }
 }
