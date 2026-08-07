@@ -37,9 +37,14 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // `/admin` only. `/` is intentionally absent: it is the entry-gate page
-  // (`enforceEntry`), so a proxy redirect fired on `/` would be a redirect loop
-  // — and the gate already resolves the session-less case itself. The other
-  // routes worth protecting live behind server-side guards, not here.
-  matcher: ["/admin"],
+  // The `/admin` tree only. Both patterns are needed: `/admin` matches the
+  // section root exactly, and `/admin/:path*` covers every sub-route under it
+  // (`/admin/users`, `/admin/users/123`, …) — a bare `/admin` matcher would let
+  // any future sub-route skip the optimization entirely.
+  //
+  // `/` is intentionally absent: it is the entry-gate page (`enforceEntry`), so
+  // a proxy redirect fired on `/` would be a redirect loop — and the gate
+  // already resolves the session-less case itself. The other routes worth
+  // protecting live behind server-side guards, not here.
+  matcher: ["/admin", "/admin/:path*"],
 };

@@ -13,18 +13,20 @@ import type { UserRole } from "@/lib/user-schema";
 
 type AuthContext = { session: Session; user: User };
 
-// Admin guards re-read the role with a live DB, so they can hand back a
-// non-null `db` and spare callers from re-asserting it across the call boundary.
-type AdminContext = AuthContext & { db: NonNullable<typeof db> };
+// Admin guards re-read the role with a live DB, so they can hand back the `db`
+// handle and spare callers from re-deriving it across the call boundary.
+type AdminContext = AuthContext & { db: Database };
 
-/** A non-null Drizzle database handle (the live connection an Access guard needs
- *  to re-read Role from the database). */
-type Database = NonNullable<typeof db>;
+/** The Drizzle database handle (the live connection an Access guard needs to
+ *  re-read Role from the database). */
+type Database = typeof db;
 
 // Why an admin Access guard denied the request, modelled so the decision can be
 // expressed without coupling to Next's `redirect`/`throw` side effects.
-// `db-unavailable` means the live Role could not be read (no DB connection),
-// which an Access guard must treat as a denial rather than a pass.
+// `db-unavailable` means the live Role read itself failed (postgres-js connects
+// lazily, so an unreachable database surfaces as a thrown query, not as a
+// missing handle), which an Access guard must treat as a denial rather than a
+// pass — and distinctly from a read that succeeded but found no user row.
 export type AccessReason = "no-session" | "db-unavailable" | "not-admin";
 
 // The outcome of resolving an admin Access guard: either the verified context
@@ -46,39 +48,76 @@ export async function getSession(): Promise<AuthContext | null> {
 }
 
 /**
+ * The signal a Role reader returns when the read could not happen at all — the
+ * database was unreachable, the query failed, the connection dropped. A unique
+ * symbol rather than a string so it can never collide with a Role value read
+ * out of the (free-text) `role` column.
+ */
+export const DB_UNAVAILABLE: unique symbol = Symbol("db-unavailable");
+
+/**
+ * Reads a user's Role for the admin Access guard. Three distinct results, all
+ * of which `resolveAdmin` treats differently:
+ *   - a `UserRole` — the live read succeeded;
+ *   - `null` — the read succeeded but the user row has vanished;
+ *   - `DB_UNAVAILABLE` — the read itself failed and no Role is knowable.
+ */
+export type RoleReader = (
+  userId: string,
+) => Promise<UserRole | null | typeof DB_UNAVAILABLE>;
+
+/**
  * Re-read a user's Role straight from the database. This is the live read the
  * admin Access guards rely on: we never trust the Session's claims, so revoking
- * admin in the DB takes effect immediately on the next request. Returns `null`
- * when the user row has vanished.
+ * admin in the DB takes effect immediately on the next request.
+ *
+ * Returns `null` when the user row has vanished, and `DB_UNAVAILABLE` when the
+ * query throws. That catch is what keeps the `db-unavailable` denial reachable:
+ * postgres-js connects lazily, so an unreachable database does not produce a
+ * missing handle — it produces a throw here, which without this catch would
+ * escape the guard entirely and become a 500 instead of a modelled denial.
  */
 async function readRole(
   database: Database,
   userId: string,
-): Promise<UserRole | null> {
-  const [currentUser] = await database
-    .select({ role: user.role })
-    .from(user)
-    .where(eq(user.id, userId))
-    .limit(1);
-  // `role` is a free-text column constrained by `userRoleSchema` on write.
-  return (currentUser?.role as UserRole | undefined) ?? null;
+): Promise<UserRole | null | typeof DB_UNAVAILABLE> {
+  try {
+    const [currentUser] = await database
+      .select({ role: user.role })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+    // `role` is a free-text column constrained by `userRoleSchema` on write.
+    return (currentUser?.role as UserRole | undefined) ?? null;
+  } catch {
+    // Fail closed: an unreadable Role is a denial, never a pass.
+    return DB_UNAVAILABLE;
+  }
 }
 
 // --- the invariant (PURE and testable) ------------------------------------
 
 /**
  * The admin Access guard invariant: a caller is admin only if the *reader*
- * (a live DB read) says so — the Session is never consulted for Role. The DB
- * being unavailable is modelled as a `null` reader, which is a denial, not a
- * pass. Pure: no `next/headers`, no `redirect`, no DB of its own.
+ * (a live DB read) says so — the Session is never consulted for Role.
+ *
+ * The two failure modes of that read are kept apart deliberately. A reader that
+ * signals `DB_UNAVAILABLE` could not determine a Role at all, which is a
+ * `db-unavailable` denial; a reader that returns `null` did read successfully
+ * and found no user row, which is an ordinary `not-admin` denial. Both deny —
+ * this guard fails closed — but only the first is an infrastructure fault worth
+ * surfacing as one.
+ *
+ * Pure: no `next/headers`, no `redirect`, no DB of its own.
  */
 export async function resolveAdmin(
   ctx: AuthContext | null,
-  reader: ((userId: string) => Promise<UserRole | null>) | null,
+  reader: RoleReader,
 ): Promise<Outcome> {
   if (!ctx) return { ok: false, reason: "no-session" };
-  if (!reader) return { ok: false, reason: "db-unavailable" };
-  if ((await reader(ctx.user.id)) !== "admin") {
+  const role = await reader(ctx.user.id);
+  if (role === DB_UNAVAILABLE) return { ok: false, reason: "db-unavailable" };
+  if (role !== "admin") {
     return { ok: false, reason: "not-admin" };
   }
   return { ok: true, ctx };

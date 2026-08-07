@@ -1,0 +1,63 @@
+# Everything listed here is excluded from the build context sent to the daemon.
+# Two reasons to care: a smaller context is a faster build, and anything that
+# reaches the context can end up in an image layer.
+
+# Dependencies — reinstalled from the lockfile inside the deps stage. Copying a
+# host node_modules in would also drag platform-specific native binaries
+# (darwin/msvc) into a linux image.
+node_modules/
+
+# Build outputs — the image builds its own. A stale host `.next` copied in can
+# shadow the fresh build.
+.next/
+build/
+dist/
+coverage/
+
+# Git history. Large, and never needed to compile the app.
+.git/
+.gitignore
+.gitmodules
+
+# Local environment files. These MUST NOT reach the build context: anything in
+# the context can be COPYed into a layer, and image layers are readable by
+# anyone who can pull the image. Real values are supplied at runtime instead
+# (--env-file / orchestrator secrets). `.env.example` holds only placeholders,
+# but the build has no use for it either, so the whole family goes.
+.env
+.env.*
+
+# TypeScript incremental build state — host-specific, regenerated on build.
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Agent / editor tooling. Not part of the app.
+.claude/
+.agents/
+.vscode/
+.idea/
+.mcp.json
+skills-lock.json
+AGENTS.md
+CLAUDE.md
+CONTEXT.md
+
+# Local-only infrastructure and docs.
+docker-compose.yml
+Dockerfile
+.dockerignore
+README.md
+
+# Logs and OS cruft.
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+*.pem
+
+# --- DO NOT IGNORE `drizzle/` ----------------------------------------------
+# It looks like generated output that the app does not need, and it is not.
+# `src/lib/system-readiness.ts` does `import journal from
+# "../../drizzle/meta/_journal.json"` — a BUILD-TIME import. Excluding the
+# directory here makes `pnpm build` fail inside the builder stage with an
+# unresolved module. Leave it in the context.

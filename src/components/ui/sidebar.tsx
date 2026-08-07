@@ -585,10 +585,14 @@ function SidebarMenuSkeleton({
 }: React.ComponentProps<"div"> & {
   showIcon?: boolean
 }) {
-  // Random width between 50 to 90%.
-  const [width] = React.useState(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`
-  })
+  // Deviation from upstream shadcn: upstream picks a random width between
+  // 50-90% here. `Math.random()` in a render body resolves to a different
+  // number on the server than on the client, so the SSR'd markup and the
+  // hydrated markup disagree and React reports a hydration mismatch. There is
+  // no stable per-instance input to derive a varied width from (the component
+  // takes no id/index), so we pin a single deterministic width instead. The
+  // visual cost is uniform skeleton rows; the benefit is hydration safety.
+  const width = "70%"
 
   return (
     <div

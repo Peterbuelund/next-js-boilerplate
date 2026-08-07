@@ -38,6 +38,21 @@ export type AdminUser = {
   createdAt: Date
 }
 
+// This component is a client component, but it is rendered from the server
+// `/admin` page, so its markup is produced twice: once during SSR and once
+// during hydration. `toLocaleDateString()` with no arguments resolves against
+// whatever locale and timezone the process has, which differs between the
+// server and the visitor's browser and therefore produces a hydration
+// mismatch. Pinning both the locale and the timezone makes the output
+// byte-identical on both sides. Built once at module scope because
+// `Intl.DateTimeFormat` construction is comparatively expensive.
+const DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+})
+
 function roleBadgeVariant(role: string): "default" | "secondary" | "destructive" {
   if (role === "admin") return "default"
   if (role === "disabled") return "destructive"
@@ -89,6 +104,10 @@ export function UsersSection({
             ) : (
               users.map((user) => {
                 const isSelf = user.id === currentUserId
+                // `createdAt` is typed as a Date but crosses the RSC boundary,
+                // where it can arrive as a serialized string — coerce
+                // defensively before formatting.
+                const createdAt = new Date(user.createdAt)
                 return (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
@@ -101,7 +120,9 @@ export function UsersSection({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      <time dateTime={createdAt.toISOString()}>
+                        {DATE_FORMAT.format(createdAt)}
+                      </time>
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

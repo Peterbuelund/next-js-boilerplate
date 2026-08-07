@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { desc } from "drizzle-orm";
 import { user } from "@/lib/schema";
 import { requireAdminOrRedirect } from "@/lib/auth-guards";
@@ -5,6 +6,12 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Header } from "@/components/layout/header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AdminPanel } from "@/components/admin/admin-panel";
+
+// See `src/app/(app)/page.tsx` for why every page in this app is noindexed.
+export const metadata: Metadata = {
+  title: "Admin",
+  robots: { index: false, follow: false },
+};
 
 export default async function AdminPage() {
   const { user: currentUser, db } = await requireAdminOrRedirect();

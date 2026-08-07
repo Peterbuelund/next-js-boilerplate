@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { resolveAdmin } from "./auth-guards";
+import { resolveAdmin, DB_UNAVAILABLE } from "./auth-guards";
 import type { UserRole } from "./user-schema";
 
 // `resolveAdmin` is the pure heart of the admin Access guard: it decides
@@ -9,9 +9,10 @@ import type { UserRole } from "./user-schema";
 // fixture is enough.
 const ctx = { user: { id: "u1" } } as Parameters<typeof resolveAdmin>[0];
 
-// Build a stub reader that always reports the given Role, standing in for the
-// live DB read.
-function reads(role: UserRole | null) {
+// Build a stub reader that always reports the given result, standing in for the
+// live DB read — a Role, `null` for "row is gone", or `DB_UNAVAILABLE` for
+// "the read itself failed".
+function reads(role: UserRole | null | typeof DB_UNAVAILABLE) {
   return () => Promise.resolve(role);
 }
 
@@ -23,10 +24,11 @@ describe("resolveAdmin", () => {
     });
   });
 
-  it("denies with 'db-unavailable' when the reader is null", async () => {
-    // A null reader models the DB being unreachable — the Role cannot be read,
-    // so the guard denies rather than passing.
-    expect(await resolveAdmin(ctx, null)).toEqual({
+  it("denies with 'db-unavailable' when the reader signals DB_UNAVAILABLE", async () => {
+    // The wired reader returns this signal when the live read throws (an
+    // unreachable database). The Role cannot be known, so the guard fails
+    // closed and denies rather than letting the error escape as a 500.
+    expect(await resolveAdmin(ctx, reads(DB_UNAVAILABLE))).toEqual({
       ok: false,
       reason: "db-unavailable",
     });
@@ -50,6 +52,8 @@ describe("resolveAdmin", () => {
   });
 
   it("denies with 'not-admin' when the user row has vanished (reader returns null)", async () => {
+    // Distinct from DB_UNAVAILABLE: the read succeeded, there is simply no row,
+    // which is an ordinary denial rather than an infrastructure fault.
     expect(await resolveAdmin(ctx, reads(null))).toEqual({
       ok: false,
       reason: "not-admin",

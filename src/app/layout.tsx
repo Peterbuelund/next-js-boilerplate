@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Figtree } from "next/font/google";
 import "./globals.css";
-import { SessionProvider } from "@/components/auth/session-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { env } from "@/lib/env";
 
@@ -27,8 +26,11 @@ const geistMono = Geist_Mono({
 // "Next.js Boilerplate" and replace every hit with the real product name, then
 // rewrite the description — shipping with these values means shipping a site
 // that describes itself as a template in search results and link previews.
-const APP_NAME = "Next.js Boilerplate";
-const APP_DESCRIPTION =
+// Exported because `opengraph-image.tsx` renders the same two strings onto the
+// social card — a card that disagreed with the `<title>`/`<meta description>`
+// would be a second place to forget during the rename above.
+export const APP_NAME = "Next.js Boilerplate";
+export const APP_DESCRIPTION =
   "A Next.js starter with authentication, a Postgres/Drizzle data layer, and a themed shadcn/ui component set already wired together.";
 
 export const metadata: Metadata = {
@@ -55,10 +57,13 @@ export const metadata: Metadata = {
     description: APP_DESCRIPTION,
   },
   twitter: {
-    // No `images` key here or in `openGraph`: this repo ships no OG image, and
-    // pointing at a missing asset renders a broken preview — worse than the
-    // plain text card crawlers fall back to. Add `src/app/opengraph-image.tsx`
-    // and Next.js will wire the image tags in automatically.
+    // Still no explicit `images` key here or in `openGraph`, and that is
+    // correct: `src/app/opengraph-image.tsx` exists, and Next.js discovers that
+    // file convention and injects both `og:image` and `twitter:image` (plus
+    // their type/size/alt tags) automatically. Setting `images` by hand here
+    // would shadow the generated tags with a URL nothing guarantees exists.
+    // `summary_large_image` is what upgrades that generated 1200x630 card from
+    // a thumbnail to the full-width preview it was sized for.
     card: "summary_large_image",
   },
 };
@@ -72,9 +77,7 @@ export default function RootLayout({
     <html lang="en" className={figtree.variable} suppressHydrationWarning>
       <body className={`${geistMono.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <SessionProvider>
-            {children}
-          </SessionProvider>
+          {children}
         </ThemeProvider>
       </body>
     </html>

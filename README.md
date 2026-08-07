@@ -166,6 +166,59 @@ Required secrets are read at build time as well as runtime (`src/lib/env.ts` par
 strictly with no bypass), so `POSTGRES_URL` and `BETTER_AUTH_SECRET` must be available
 to the build step too.
 
+### Building and running the container image
+
+A production `Dockerfile` at the repo root implements the above: a `deps → builder →
+runner` multi-stage build on `node:22-alpine`, ending in a non-root image that ships the
+standalone server plus `.next/static` and runs `node server.js`.
+
+```bash
+# Build. NEXT_PUBLIC_APP_URL must be the real public origin — see below.
+docker build \
+  --build-arg NEXT_PUBLIC_APP_URL=https://app.example.com \
+  -t next-js-boilerplate .
+
+# Run. Secrets come from the runtime environment, never from the image.
+docker run --rm -p 3000:3000 \
+  -e POSTGRES_URL='postgresql://user:pass@host:5432/db' \
+  -e BETTER_AUTH_SECRET='<32+ character secret>' \
+  -e NEXT_PUBLIC_APP_URL='https://app.example.com' \
+  next-js-boilerplate
+```
+
+**Build-time vs. runtime variables** — the distinction matters and is easy to get wrong:
+
+| Variable | Build | Runtime | Why |
+| --- | --- | --- | --- |
+| `NEXT_PUBLIC_APP_URL` | **required** (`--build-arg`) | required | Next.js inlines every `NEXT_PUBLIC_*` value into the client bundle at build time. The compiled JavaScript carries whatever was set during `pnpm build`, and no runtime value can change it. It is still needed at runtime because `src/lib/env.ts` validates it on the server too — keep the two identical. |
+| `POSTGRES_URL` | placeholder only | **required** | `src/lib/env.ts` validates at module load and `next build` evaluates it, so the build needs *something* that parses. The Dockerfile supplies a fake value via `ARG`; it is never used to reach a database and is not baked into the output. |
+| `BETTER_AUTH_SECRET` | placeholder only | **required** | Same reason. Must be **32+ characters** or the schema rejects it — the build-time placeholder satisfies the length rule and nothing else. |
+
+> **The placeholders are not defaults.** Boot the image without real `POSTGRES_URL` and
+> `BETTER_AUTH_SECRET` values and the process crashes immediately by design. Supply them
+> from your orchestrator's secret store (`--env-file`, Kubernetes `Secret`, etc.).
+
+**Migrations are not run by the image.** The container ships the standalone bundle only —
+no `drizzle-kit`, no source. Run migrations against the target database separately, before
+or as part of the deploy, from a checkout with dev dependencies installed:
+
+```bash
+POSTGRES_URL='postgresql://user:pass@host:5432/db' pnpm db:migrate
+```
+
+Skipping this leaves the app running against an unmigrated schema; the readiness
+diagnostics will say so, but the app will not be usable.
+
+## Known deferred items
+
+- **Avatar images bypass `next/image`.** The vendored shadcn `Avatar`
+  (`src/components/ui/avatar.tsx`) renders through Radix's `Avatar.Image`, which emits a
+  raw `<img>` — so avatars get no optimization, resizing, or lazy-loading. The right fix
+  is `next/image` plus an `images.remotePatterns` entry in `next.config.ts`, but
+  `remotePatterns` has to name the actual host serving the avatars, and no remote avatar
+  host has been chosen yet. Deferred deliberately until one is: guessing a pattern now
+  would either be wrong or so broad it defeats the point of the allowlist.
+
 ## Resources
 
 - [Next.js Docs](https://nextjs.org/docs)
