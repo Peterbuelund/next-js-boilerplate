@@ -31,19 +31,19 @@ Better Auth's proof that a request comes from a signed-in User. Role is re-read 
 _Avoid_: token, cookie, login
 
 **Environment contract**:
-The set of environment variables the app requires to boot, validated once at module load by `env.ts` (a zod parse). A missing or malformed _required_ variable (`POSTGRES_URL`, `BETTER_AUTH_SECRET`) crashes the process — it never degrades to a runtime check or a UI prompt. The single typed `env` export replaces every scattered `process.env.X!` / `Boolean(process.env.X)`. Required secrets are supplied at build time (e.g. via CI/workflow secrets), so the parse is strict everywhere — there is no build-time bypass. Distinct from **Preflight**: the Environment contract is about _static configuration_ being present at boot; Preflight is about _runtime_ database state.
+The set of environment variables the app requires to boot, validated once at module load by `env.ts` (a zod parse). A missing or malformed _required_ variable (`POSTGRES_URL`, `BETTER_AUTH_SECRET`) crashes the process — it never degrades to a runtime check or a UI prompt. The single typed `env` export replaces every scattered `process.env.X!` / `Boolean(process.env.X)`. Required secrets are supplied at build time (e.g. via CI/workflow secrets), so the parse is strict everywhere — there is no build-time bypass. Distinct from **Readiness diagnosis**: the Environment contract is about _static configuration_ being present at boot; readiness diagnosis is about _runtime_ database state.
 _Avoid_: config check, env guard, settings
 
 **Readiness probe**:
-The single runtime check of database state — a `SELECT 1` ping plus a `user`-table touch under a 5s timeout — exposed by `probeReadiness()` as a structured `ReadinessReport` (`connected`, `schemaApplied`) — pure state, no operator messages. Two pure projections read from it: `isReady()`, **Preflight**'s boolean gate (via `getSystemReadiness()`); and `readinessChecklist()`, which maps the report to operator-facing steps (label + remediation) that the `/api/diagnostics` payload serializes and the checklist renders. Operator remediation copy lives in `readinessChecklist` alone. One probe, never two.
+The single runtime check of database state — a `SELECT 1` ping plus a `user`-table touch under a 5s timeout — exposed by `probeReadiness()` as a structured `ReadinessReport` (`connected`, `schemaApplied`) — pure state, no operator messages. It is a _diagnosis_, not a gate: nothing runs it ahead of time, it runs after something has already failed. Two pure projections read from it: `isReady()`, the boolean "is this the DB's fault" verdict; and `readinessChecklist()`, which maps the report to operator-facing steps (label + remediation) that the `/api/diagnostics` payload serializes and the error boundary's checklist renders. Operator remediation copy lives in `readinessChecklist` alone. One probe, never two.
 _Avoid_: health check, ping, heartbeat
 
-**Preflight**:
-A _runtime_ readiness gate that runs before any entry-point page proceeds. The system is _ready_ only when the database is reachable with its schema migrated. Static configuration (`BETTER_AUTH_SECRET`, `POSTGRES_URL`) is no longer Preflight's concern — it is enforced at boot by the **Environment contract**. When not ready, every entry-point page redirects to `/preflight`, which shows the readiness checklist (backed by `/api/diagnostics`); `/preflight` redirects away once the system is ready. Distinct from **First-run setup**: Preflight is about the _system_ being able to run at all; First-run setup is about creating the first **Admin**. Sits first in the **Entry cascade**.
-_Avoid_: setup (reserved for First-run setup), health check, diagnostics (reserve for the `/api/diagnostics` endpoint Preflight reads)
+**Readiness diagnosis**:
+The operator-facing explanation of _why_ the app just failed, shown by the error boundary rather than by a gate in front of the app. The system is _ready_ only when the database is reachable with its schema migrated; static configuration (`BETTER_AUTH_SECRET`, `POSTGRES_URL`) is not its concern — that is enforced at boot by the **Environment contract**. There is no pre-check and no readiness route: an unreachable or unmigrated database throws out of whatever query hit it first, and the boundary answers with the readiness checklist (backed by `/api/diagnostics`). Distinct from **First-run setup**: readiness diagnosis is about the _system_ being able to run at all; First-run setup is about creating the first **Admin**. Deliberately _not_ part of the **Entry cascade**.
+_Avoid_: preflight (removed), setup (reserved for First-run setup), health check, gate
 
 **First-run setup**:
-The interactive flow that creates the first Admin on a fresh install. Runs only after **Preflight** passes. When no Admin exists (`hasAdmin` returns false), all entry-point pages redirect to `/setup`, where the operator creates the initial admin account. Once an Admin exists, `/setup` redirects away.
+The interactive flow that creates the first Admin on a fresh install. When no Admin exists (`hasAdmin` returns false), all entry-point pages redirect to `/setup`, where the operator creates the initial admin account. Once an Admin exists, `/setup` redirects away.
 _Avoid_: seed user, env admin, root admin
 
 **Access guard**:
@@ -51,7 +51,7 @@ A server-side check that gates a request by **Session** (`requireSession*`) or *
 _Avoid_: middleware, auth check, gate
 
 **Entry cascade**:
-The ordered sequence of gates every entry-point page runs before rendering: **Preflight** → **First-run setup** → **Sign in**. Resolved by two pure functions: `resolveEntry` maps the current system state to a destination in that fixed order (short-circuiting — a down DB never probes further), and `reconcile` compares that destination against the requesting path to signal "stay" (render this page) or a redirect target. Each entry-point page is a one-line adapter: `enforceEntry(path)`. The **Environment contract** is _not_ part of the cascade — env is guaranteed present by the time any page runs, so the cascade's first question is Preflight (runtime DB readiness).
+The ordered sequence of gates every entry-point page runs before rendering: **First-run setup** → **Sign in**. Resolved by two pure functions: `resolveEntry` maps the current application state to a destination in that fixed order (short-circuiting — with no Admin it never probes for a Session), and `reconcile` compares that destination against the requesting path to signal "stay" (render this page) or a redirect target. Each entry-point page is a one-line adapter: `enforceEntry(path)`. The cascade asks only about _application_ state: the **Environment contract** is guaranteed at boot, and **Readiness diagnosis** is handled after the fact by the error boundary rather than by an eager probe on every request.
 _Avoid_: routing guard, middleware, redirect chain
 
 ### Provisioning

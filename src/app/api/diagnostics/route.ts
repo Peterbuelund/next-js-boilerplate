@@ -6,15 +6,15 @@ import {
   type DiagnosticsPayload,
 } from "@/lib/system-readiness";
 
-// This endpoint is intentionally public (no auth required) because it's used by
-// the setup checklist on /preflight before an operator can sign in. It returns
-// only boolean flags and canned remediation about runtime database state, not
-// sensitive data.
+// This endpoint is intentionally public (no auth required) because it backs the
+// setup checklist the error boundary renders, and that has to work before an
+// operator can sign in — a broken database is exactly the state in which no one
+// *can* authenticate. It returns only boolean flags and canned remediation
+// about runtime database state, not sensitive data.
 //
-// Thin serializer over the shared readiness probe: the boolean Entry-cascade
-// gate and this payload both project from a single source of truth
-// (`probeReadiness`), and the operator-facing steps come from the single
-// `readinessChecklist` projection.
+// Thin serializer over `probeReadiness`: the payload is a pure projection of one
+// probe, and the operator-facing steps come from the single `readinessChecklist`
+// projection so remediation copy has exactly one home.
 export async function GET() {
   const report = await probeReadiness();
   const payload: DiagnosticsPayload = {

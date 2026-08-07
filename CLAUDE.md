@@ -1,3 +1,7 @@
+# Project Description
+
+This project uses pnpm
+
 ## PROJECT REFERENCE
 - See `README.md` for setup, env vars, scripts, structure, and deployment.
 

@@ -1,3 +1,9 @@
+// Server-only user operations. Talks to Better Auth and the database directly,
+// so it must never reach the browser; the dependency-free schemas it re-exports
+// live in `@/lib/user-schema`, which client code should import instead. The
+// `server-only` import makes that boundary a build-time error rather than a
+// convention.
+import "server-only";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";

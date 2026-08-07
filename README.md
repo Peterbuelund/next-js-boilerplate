@@ -44,10 +44,9 @@ A clean Next.js boilerplate with authentication, role-based access, and an admin
 - **Role-based access** — every user is `user`, `admin`, or `disabled`. Roles are re-read
   from the database on each privileged request, so changes take effect immediately.
   Setting a user to `disabled` rejects sign-in and destroys existing sessions.
-- **Preflight readiness gate** — before anything else, every entry-point page checks
-  that the database is reachable and its schema migrated. Until it is, all pages redirect
-  to `/preflight`, which shows a live checklist (backed by `/api/diagnostics`) and
-  continues automatically once the system is ready.
+- **Readiness diagnostics** — when the database is unreachable or its schema hasn't been
+  migrated, the error boundary shows a live checklist (backed by `/api/diagnostics`)
+  naming the exact remediation to run, instead of a bare stack trace.
 - **First-run setup** — on a fresh install with no admin, every page redirects
   to `/setup` where you create the first administrator interactively.
 - **Admin panel** (`/admin`, admin-only) — add, edit, and delete users; change roles.
@@ -110,17 +109,23 @@ pnpm db:migrate   # Apply pending migrations
 ## Project Structure
 
 ```
+public/             # Statically served assets — empty by design (holds only .gitkeep).
+                    # Must live at the repo root, not under src/, or Next.js will not
+                    # serve its contents. Files here are exposed at the site root:
+                    # public/logo.svg is fetched as /logo.svg.
 src/
   app/
     admin/          # Admin user-management panel (admin-only)
     auth/           # Sign-in, sign-up, forgot/reset password pages
-    preflight/      # System-readiness gate (shown until the DB is ready)
     setup/          # First-run setup page (creates the first admin)
     api/
       auth/         # Better Auth catch-all route handler
-      diagnostics/  # Public readiness endpoint (backs the preflight checklist)
+      diagnostics/  # Public readiness endpoint (backs the readiness checklist)
     page.tsx        # Dashboard / home
     layout.tsx      # Root layout
+    error.tsx       # Route error boundary (renders the readiness checklist)
+    global-error.tsx # Last-resort boundary — replaces the whole document
+    not-found.tsx   # 404 page
   lib/
     auth.ts             # Better Auth server config
     auth-client.ts      # Better Auth browser client
@@ -130,7 +135,7 @@ src/
     user-schema.ts      # Shared user validation schemas (zod)
     users.ts            # User provisioning module
     env.ts              # Environment contract (validated once at boot)
-    entry-cascade.ts    # Resolves preflight → setup → sign-in redirects
+    entry-cascade.ts    # Resolves setup → sign-in redirects
     system-readiness.ts # Runtime DB readiness probe
 ```
 
@@ -139,6 +144,27 @@ src/
 - **App**: Vercel, or any Node host (`pnpm build && pnpm start`).
 - **Database**: Neon, Supabase, or self-hosted PostgreSQL. Set `POSTGRES_URL`,
   `BETTER_AUTH_SECRET`, and `NEXT_PUBLIC_APP_URL` in the host environment.
+
+### Self-hosting (standalone output)
+
+`next.config.ts` sets `output: "standalone"`, so `pnpm build` additionally emits
+`.next/standalone`: a minimal `server.js` plus only the `node_modules` the app actually
+reaches at runtime. A container image can ship that directory and run `node server.js`
+instead of installing the full dependency tree.
+
+> **Caveat**: the standalone output does **not** include `public/` or `.next/static` —
+> Next.js assumes a CDN serves them. Without one, copy both into the runtime image
+> yourself, or the server will boot but serve no static assets and no JS chunks:
+>
+> ```dockerfile
+> COPY --from=builder /app/.next/standalone ./
+> COPY --from=builder /app/public ./public
+> COPY --from=builder /app/.next/static ./.next/static
+> ```
+
+Required secrets are read at build time as well as runtime (`src/lib/env.ts` parses
+strictly with no bypass), so `POSTGRES_URL` and `BETTER_AUTH_SECRET` must be available
+to the build step too.
 
 ## Resources
 

@@ -1,14 +1,16 @@
 // Server-only environment contract. This module reads `BETTER_AUTH_SECRET` and
 // other secrets out of `process.env`, so it must never be imported into a client
-// component (where it would leak into the browser bundle). (The `server-only`
-// package is not installed in this project, so we rely on convention rather than
-// a hard guard, the same way `auth-guards.ts` does.)
+// component (where it would leak into the browser bundle). The `server-only`
+// import below makes that boundary a build-time error rather than a convention:
+// if this module ever reaches a client bundle, the build fails instead of the
+// secrets shipping to the browser.
 //
 // Fail-fast by design: the schema is parsed ONCE, at module load, and a missing
 // or invalid variable throws — crashing the process at boot. There is no escape
 // hatch (no `SKIP_ENV_VALIDATION`): an operator should learn about a broken
 // environment the moment the server starts, not on the first request that needs
 // the variable.
+import "server-only";
 import { z } from "zod";
 
 // `NEXT_PUBLIC_APP_URL` is only allowed to fall back to localhost outside of

@@ -26,7 +26,7 @@ describe("isReady", () => {
 });
 
 // `readinessChecklist` is the pure projection that turns a ReadinessReport into
-// the operator-facing steps the /preflight checklist renders. It is the single
+// the operator-facing steps the error boundary's checklist renders. It is the single
 // home for remediation copy; the report itself carries no operator messages.
 describe("readinessChecklist", () => {
   it("marks both steps ok with no remediation when the system is ready", () => {

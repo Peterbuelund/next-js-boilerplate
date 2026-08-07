@@ -18,7 +18,17 @@ function StatusIcon({ ok }: { ok: boolean }) {
   );
 }
 
-export function SetupChecklist() {
+type SetupChecklistProps = {
+  // How the operator leaves the checklist once everything is green. Injectable
+  // because the recovery action differs by host: standing on a page, the fix is
+  // to navigate home; inside an error boundary there is no page to navigate
+  // away from — the boundary must re-render the subtree it caught (`reset`).
+  // Hardcoding router.push there would leave the boundary mounted over a route
+  // that never re-attempted its render.
+  onContinue?: () => void;
+};
+
+export function SetupChecklist({ onContinue }: SetupChecklistProps = {}) {
   const router = useRouter();
   const [data, setData] = useState<DiagnosticsPayload | null>(null);
   // Starts true: the mount effect below always kicks off a fetch.
@@ -104,6 +114,10 @@ export function SetupChecklist() {
           <Button
             className="w-full"
             onClick={() => {
+              if (onContinue) {
+                onContinue();
+                return;
+              }
               router.push("/");
               // Readiness changed server-side since this page loaded, so drop
               // the cached RSC payload the entry gate was rendered from.

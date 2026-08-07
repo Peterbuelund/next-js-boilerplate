@@ -1,3 +1,9 @@
+// Server-only readiness probes. These run queries against the live database, so
+// the module must never reach the browser — client components may import its
+// TYPES only (`import type { DiagnosticsPayload }`), which is erased at compile
+// time. The `server-only` import makes that boundary a build-time error rather
+// than a convention.
+import "server-only";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/schema";
@@ -11,8 +17,9 @@ export type ReadinessReport = {
   schemaApplied: boolean; // the `user` table is queryable (migrations ran)
 };
 
-// One operator-facing checklist row: a stable key, a human label, its ok flag,
-// and — only when failing — the remediation to run.
+// One operator-facing checklist row — a stable key, a human label, its ok flag,
+// and, only when failing, the remediation to run. Rendered by the error
+// boundary's checklist once something has already gone wrong.
 export type ReadinessStep = {
   key: string;
   label: string;
@@ -20,8 +27,8 @@ export type ReadinessStep = {
   detail?: string;
 };
 
-// The `/api/diagnostics` wire contract: the checklist steps the /preflight page
-// renders, plus a proceed flag and the check timestamp.
+// The `/api/diagnostics` wire contract: the checklist steps the error
+// boundary's checklist renders, plus a proceed flag and the check timestamp.
 export type DiagnosticsPayload = {
   timestamp: string;
   ready: boolean;
@@ -48,8 +55,8 @@ function step(
 }
 
 /**
- * Project a `ReadinessReport` into the operator-facing checklist the /preflight
- * page renders — one step per runtime check, each carrying its OWN remediation
+ * Project a `ReadinessReport` into the operator-facing checklist the error
+ * boundary renders — one step per runtime check, each carrying its OWN remediation
  * when failing (so a down DB still shows the schema step its migrate hint, not
  * the connection message). This is the SINGLE home for operator remediation
  * copy; the report itself is pure state. Pure: no DB, no timeout.
@@ -118,13 +125,4 @@ export async function probeReadiness(): Promise<ReadinessReport> {
   } catch {
     return { connected: false, schemaApplied: false };
   }
-}
-
-/**
- * Derived boolean gate used by the Entry cascade. A thin projection over the
- * shared probe so the gate and the diagnostics payload share one source of
- * truth. Never throws.
- */
-export async function getSystemReadiness(): Promise<{ ready: boolean }> {
-  return { ready: isReady(await probeReadiness()) };
 }

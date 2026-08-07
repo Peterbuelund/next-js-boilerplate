@@ -1,3 +1,8 @@
+// Server-only auth instance. Holds `BETTER_AUTH_SECRET` and a live database
+// handle, so it must never reach the browser (client code talks to Better Auth
+// through `@/lib/auth-client`). The `server-only` import makes that boundary a
+// build-time error rather than a convention.
+import "server-only";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";

@@ -1,6 +1,8 @@
 // Server-only authorization guards. Imports `next/headers`, so this module must
-// never be imported into client components. (The `server-only` package is not
-// installed in this project, so we rely on convention rather than a hard guard.)
+// never be imported into client components. The `server-only` import below makes
+// that boundary a build-time error rather than a convention: reaching a client
+// bundle fails the build instead of failing at runtime in the browser.
+import "server-only";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
