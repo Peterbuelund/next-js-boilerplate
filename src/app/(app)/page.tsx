@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Header } from "@/components/layout/header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { enforceEntry } from "@/lib/entry-cascade";
+import { getSession } from "@/lib/auth-guards";
 
 // Reads runtime DB/session state, so it must not be statically prerendered.
 export const dynamic = "force-dynamic";
@@ -31,9 +32,33 @@ export const metadata: Metadata = {
 export default async function Page() {
   await enforceEntry("/");
 
+  // The sidebar footer renders the signed-in identity, and it gets it from here
+  // rather than calling `authClient.useSession()` itself — that cost an extra
+  // HTTP round trip after hydration and a loading flicker for data the server
+  // already had.
+  //
+  // The tradeoff: `enforceEntry` resolved a session a moment ago (that is how it
+  // knows not to bounce us to sign-in) but discards it, returning only "stay or
+  // go". Asking again here is a second session lookup. Widening the cascade's
+  // return type to hand the session back would leak an implementation detail
+  // into the API of a module whose whole point is a yes/no gate, so we pay the
+  // lookup instead — and it is the cheap one: Better Auth reads the session from
+  // the request cookie, and the cascade's expensive leg is the `hasAdmin` query.
+  //
+  // Non-null by construction: `enforceEntry("/")` redirects (throws) unless a
+  // session exists, so reaching this line means one does.
+  const ctx = await getSession();
+  const sidebarUser = ctx
+    ? {
+        name: ctx.user.name || "User",
+        email: ctx.user.email || "",
+        avatar: ctx.user.image || "",
+      }
+    : undefined;
+
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar user={sidebarUser} />
       <SidebarInset>
         <Header title="Dashboard" />
         <div className="p-6" />

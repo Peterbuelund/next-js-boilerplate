@@ -30,7 +30,15 @@ export function FirstRunSetupForm() {
     setLoading(true);
 
     try {
-      await createFirstAdminAction({ name, email, password });
+      // The action reports expected failures ("Setup is already complete",
+      // "Email already in use") as a returned value rather than a throw,
+      // because Next redacts thrown Server Action messages in production
+      // builds — see `@/lib/action-result`.
+      const setupResult = await createFirstAdminAction({ name, email, password });
+      if (!setupResult.ok) {
+        setError(setupResult.error);
+        return;
+      }
       // Better Auth's client returns { data, error } and never throws, so the
       // result must be checked explicitly. The admin already exists at this
       // point; if auto sign-in fails, send them to sign in manually rather than
@@ -45,8 +53,11 @@ export function FirstRunSetupForm() {
       // Drop the cached RSC payload so the session-guarded pages re-render
       // against the cookie that sign-in just set.
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Setup failed");
+    } catch {
+      // Reaching here means something unexpected threw (an unreachable
+      // database, a bug). Next redacts that message in production, so there is
+      // nothing worth rendering from it — show a generic line instead.
+      setError("Setup failed");
     } finally {
       setLoading(false);
     }
