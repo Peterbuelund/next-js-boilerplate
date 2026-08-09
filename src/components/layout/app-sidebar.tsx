@@ -8,7 +8,7 @@ import {
   LayoutDashboard,
   Settings,
 } from "lucide-react"
-import { NavUser } from "@/components/layout/nav-user"
+import { NavUser, type NavUserUser } from "@/components/layout/nav-user"
 import {
   Sidebar,
   SidebarContent,
@@ -44,7 +44,21 @@ function NavItem({
   )
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+/**
+ * `user` is threaded straight through to the footer rather than fetched there.
+ * The pages that render this sidebar are Server Components that have already
+ * resolved the session to decide whether to render at all, so passing it down
+ * costs nothing, whereas re-asking for it in the client cost an extra HTTP round
+ * trip after hydration plus a visible loading flicker in the footer.
+ *
+ * Optional because the `loading.tsx` fallbacks mount this same sidebar for real
+ * (so the swap to the finished page moves nothing) and, by definition, have not
+ * awaited anything yet. NavUser renders a disabled placeholder in that case.
+ */
+export function AppSidebar({
+  user,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & { user?: NavUserUser }) {
   const pathname = usePathname()
   const isActive = (url: string) =>
     url === "/"
@@ -95,7 +109,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        <NavUser />
+        <NavUser user={user} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

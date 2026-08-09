@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { SetupChecklist } from "@/components/setup-checklist";
 
@@ -32,11 +33,36 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
+  const [isRetrying, startRetry] = useTransition();
+
   // Surface the failure in the browser console for local debugging; in
   // production this is the only client-side trace of what was thrown.
   useEffect(() => {
     console.error(error);
   }, [error]);
+
+  /**
+   * `reset()` ALONE IS NOT ENOUGH, and this is the whole reason this handler
+   * exists. It re-renders the boundary's subtree on the client, but the route
+   * that failed is a Server Component whose RSC payload is still cached in the
+   * client Router Cache — in its failed state. Resetting re-renders from that
+   * same cached payload, throws again immediately, and lands back here, so the
+   * button appears to do nothing even after the operator has fixed the actual
+   * problem (started Postgres, run the migrations).
+   *
+   * `router.refresh()` is what discards the cached payload and refetches the
+   * segment from the server. Both run inside one transition so React treats the
+   * refetch and the re-render as a single non-blocking update, and `isRetrying`
+   * gives the buttons something honest to show while the server round trip is
+   * in flight.
+   */
+  const retry = () => {
+    startRetry(() => {
+      router.refresh();
+      reset();
+    });
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -66,14 +92,14 @@ export default function Error({
               the explanation worth reading. */}
         </div>
 
-        {IS_DEV ? <SetupChecklist onContinue={reset} /> : null}
+        {IS_DEV ? <SetupChecklist onContinue={retry} /> : null}
 
         {/* An escape hatch for failures the checklist can't explain (all steps
             green), and the ONLY control in production: retry the render without
             leaving the route. */}
         <div className="flex justify-center">
-          <Button variant="outline" onClick={reset}>
-            Try again
+          <Button variant="outline" onClick={retry} disabled={isRetrying}>
+            {isRetrying ? "Retrying…" : "Try again"}
           </Button>
         </div>
       </div>

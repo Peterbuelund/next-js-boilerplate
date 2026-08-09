@@ -45,9 +45,10 @@ function checkOrigin(): boolean {
 type SetupChecklistProps = {
   // How the operator leaves the checklist once everything is green. Injected
   // rather than hardcoded as a navigation: the only host is an error boundary,
-  // where there is no page to navigate away from — the boundary must re-render
-  // the subtree it caught (`reset`). A router.push here would leave the
-  // boundary mounted over a route that never re-attempted its render.
+  // where there is no page to navigate away from — the boundary has to discard
+  // the failed RSC payload and re-render the subtree it caught (see `retry` in
+  // error.tsx). A router.push here would leave the boundary mounted over a route
+  // that never re-attempted its render.
   onContinue: () => void;
 };
 
