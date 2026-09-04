@@ -15,15 +15,24 @@ import { Skeleton } from "@/components/ui/skeleton"
  * Those two hand off to each other in sequence, so any divergence between them
  * would show up as a visible jolt mid-load. One component, one shape.
  *
- * The outer `p-6` mirrors AdminPanel's own content wrapper so the real table
- * lands exactly where the skeleton sat.
+ * The outer `flex gap-6 p-6` and the fixed-width nav column mirror AdminPanel's
+ * own two-column layout so the real table lands exactly where the skeleton sat.
  */
 export function UsersSectionSkeleton() {
   return (
-    <div className="p-6">
+    <div className="flex gap-6 p-6">
+      <div className="w-40 shrink-0 space-y-1" aria-hidden="true">
+        <Skeleton className="h-9 w-full rounded-4xl" />
+        <Skeleton className="h-9 w-full rounded-4xl" />
+      </div>
       {/* aria-busy + a polite live region so a screen reader announces the wait
           instead of reading a page with nothing in it. */}
-      <div role="status" aria-busy="true" aria-live="polite">
+      <div
+        role="status"
+        aria-busy="true"
+        aria-live="polite"
+        className="min-w-0 flex-1"
+      >
         <span className="sr-only">Loading users</span>
         <Card>
           {/* CardHeader: title + description on the left, "Add user" on the right. */}
