@@ -7,7 +7,7 @@
 // on every entry-point request cost a round trip on the happy path to answer a
 // question the very next query answers anyway, so a down or unmigrated DB now
 // surfaces where it actually breaks: the probing query throws and the error
-// boundary renders the readiness checklist. The gate below is concerned only
+// boundary renders a generic error page. The gate below is concerned only
 // with *application* state (is there an admin, is the caller signed in).
 //
 // The `server-only` import makes that boundary a build-time error rather than a
@@ -46,7 +46,7 @@ type EntryProbes = {
  * `/setup` without ever probing for a session, which also keeps the cheap
  * question ahead of the expensive one. Database readiness is deliberately not a
  * leg here: an unreachable or unmigrated DB makes `hasAdmin` throw, and the
- * error boundary turns that into the readiness checklist. Pure: no
+ * error boundary shows a generic error page. Pure: no
  * `next/headers`, no DB, no env of its own.
  */
 export async function resolveEntry(probes: EntryProbes): Promise<Destination> {

@@ -8,6 +8,13 @@
       "when": 1781387606648,
       "tag": "0000_goofy_mulholland_black",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790798606656,
+      "tag": "0001_add_admin_invite",
+      "breakpoints": true
     }
   ]
 }

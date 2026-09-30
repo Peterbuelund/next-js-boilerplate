@@ -44,11 +44,12 @@ A clean Next.js boilerplate with authentication, role-based access, and an admin
 - **Role-based access** — every user is `user`, `admin`, or `disabled`. Roles are re-read
   from the database on each privileged request, so changes take effect immediately.
   Setting a user to `disabled` rejects sign-in and destroys existing sessions.
-- **Readiness diagnostics** — when the database is unreachable or its schema hasn't been
-  migrated, the error boundary shows a live checklist (backed by `/api/diagnostics`)
-  naming the exact remediation to run, instead of a bare stack trace.
-- **First-run setup** — on a fresh install with no admin, every page redirects
-  to `/setup` where you create the first administrator interactively.
+- **Error page** — unexpected errors render a plain "Something went wrong" page with an
+  error reference (digest) when available and a "Try again" button.
+- **First admin via CLI** — while no admin exists, every page redirects to `/setup`, an
+  informational card. Create the first admin with `pnpm create-admin`, which prints a
+  one-time invite link (`/auth/invite?token=…`, valid 24h, single use) where they choose
+  a password, then sign in. Only a SHA-256 hash of the token is stored.
 - **Admin panel** (`/admin`, admin-only) — add, edit, and delete users; change roles.
 
 ## Prerequisites
@@ -72,7 +73,10 @@ docker compose up -d
 # 4. Apply database migrations
 pnpm db:migrate
 
-# 5. Start the dev server
+# 5. Create the first admin — prints a one-time invite link to set the password
+pnpm create-admin admin@example.com "Admin"
+
+# 6. Start the dev server
 pnpm dev
 ```
 
@@ -101,7 +105,13 @@ pnpm test         # Run tests (vitest)
 
 pnpm db:generate  # Generate Drizzle migrations from schema.ts
 pnpm db:migrate   # Apply pending migrations
+
+pnpm create-admin <email> "<name>" [--env <file>]  # Create the first admin + invite link
+pnpm create-admin <email> --reissue                # New invite link for an existing admin
 ```
+
+`create-admin` refuses if an admin already exists. `--reissue` invalidates any earlier
+links. `--env` defaults to `.env`; variables already set in the shell win.
 
 > **Schema changes**: edit `src/lib/schema.ts`, then run `pnpm db:generate` followed
 > by `pnpm db:migrate`. Do not use `db:push`.
@@ -117,13 +127,13 @@ src/
   app/
     admin/          # Admin user-management panel (admin-only)
     auth/           # Sign-in, sign-up, forgot/reset password pages
-    setup/          # First-run setup page (creates the first admin)
+      invite/       # Admin invite page (set password from a one-time link)
+    setup/          # "Not set up yet" card, shown while no admin exists
     api/
       auth/         # Better Auth catch-all route handler
-      diagnostics/  # Public readiness endpoint (backs the readiness checklist)
     page.tsx        # Dashboard / home
     layout.tsx      # Root layout
-    error.tsx       # Route error boundary (renders the readiness checklist)
+    error.tsx       # Route error boundary ("Something went wrong" + retry)
     global-error.tsx # Last-resort boundary — replaces the whole document
     not-found.tsx   # 404 page
   lib/
@@ -134,9 +144,11 @@ src/
     schema.ts           # Database schema
     user-schema.ts      # Shared user validation schemas (zod)
     users.ts            # User provisioning module
+    admin-invite.ts     # First-admin creation + one-time invite tokens
     env.ts              # Environment contract (validated once at boot)
     entry-cascade.ts    # Resolves setup → sign-in redirects
-    system-readiness.ts # Runtime DB readiness probe
+scripts/
+  create-admin.ts       # `pnpm create-admin` CLI
 ```
 
 ## Deployment
@@ -206,8 +218,19 @@ or as part of the deploy, from a checkout with dev dependencies installed:
 POSTGRES_URL='postgresql://user:pass@host:5432/db' pnpm db:migrate
 ```
 
-Skipping this leaves the app running against an unmigrated schema; the readiness
-diagnostics will say so, but the app will not be usable.
+Skipping this leaves the app running against an unmigrated schema, and it will not be
+usable.
+
+**Creating the first admin in production.** Likewise, the image has no source or `tsx`,
+so run `create-admin` from the same checkout against the target database. The invite
+link's origin comes from `NEXT_PUBLIC_APP_URL`, so set it to the public origin:
+
+```bash
+pnpm create-admin admin@example.com "Admin" --env .env.production
+```
+
+Open the printed link within 24 hours to set the password, then sign in. Lost it? Run
+`pnpm create-admin admin@example.com --reissue --env .env.production`.
 
 ## Known deferred items
 

@@ -253,11 +253,14 @@ ${description}
 pnpm install
 docker compose up -d      # start local Postgres
 pnpm db:migrate           # apply migrations
+pnpm create-admin admin@example.com "Admin"   # prints a one-time invite link
 pnpm dev
 \`\`\`
 
-The app runs on \`http://localhost:3000\`. On a fresh database every route
-redirects to \`/setup\`, where you create the first administrator.
+The app runs on \`http://localhost:3000\`. Until an admin exists every route
+redirects to \`/setup\`, an informational "Not set up yet" page. Open the invite
+link printed by \`create-admin\` (valid 24h, single use) to set the admin's
+password, then sign in. \`pnpm create-admin <email> --reissue\` issues a new link.
 
 ## Environment Variables
 
@@ -280,6 +283,9 @@ pnpm test         # Run tests (vitest)
 
 pnpm db:generate  # Generate Drizzle migrations from schema.ts
 pnpm db:migrate   # Apply pending migrations
+
+pnpm create-admin <email> "<name>" [--env <file>]  # First admin + invite link
+pnpm create-admin <email> --reissue                # New invite link for an admin
 \`\`\`
 
 > **Schema changes**: edit \`src/lib/schema.ts\`, then run \`pnpm db:generate\`
@@ -294,20 +300,22 @@ src/
     (app)/          # Authenticated app shell (dashboard, sidebar layout)
     admin/          # Admin user-management panel (admin-only)
     auth/           # Sign-in, sign-up, forgot/reset password pages
-    setup/          # First-run setup page (creates the first admin)
+      invite/       # Admin invite page (set password from a one-time link)
+    setup/          # "Not set up yet" card, shown while no admin exists
     api/
       auth/         # Better Auth catch-all route handler
-      diagnostics/  # Public readiness endpoint (backs the readiness checklist)
     layout.tsx      # Root layout — APP_NAME / APP_DESCRIPTION live here
-    error.tsx       # Route error boundary (renders the readiness checklist)
+    error.tsx       # Route error boundary ("Something went wrong" + retry)
   lib/
     auth.ts             # Better Auth server config
     auth-guards.ts      # requireSession* / requireAdmin* access guards
     db.ts               # Drizzle client
     schema.ts           # Database schema
     env.ts              # Environment contract (validated once at boot)
+    admin-invite.ts     # First-admin creation + one-time invite tokens
     entry-cascade.ts    # Resolves setup → sign-in redirects
-    system-readiness.ts # Runtime DB readiness probe
+scripts/
+  create-admin.ts       # \`pnpm create-admin\` CLI
 \`\`\`
 
 ## Before Production
@@ -322,6 +330,11 @@ src/
 - **App**: Vercel, or any Node host (\`pnpm build && pnpm start\`).
   \`next.config.ts\` sets \`output: "standalone"\`, and a \`Dockerfile\` is included.
 - **Database**: Neon, Supabase, or self-hosted PostgreSQL.
+- **Migrations and first admin**: the image ships no source or \`tsx\`, so run both
+  from a checkout with dev dependencies against the target database. The invite
+  link's origin comes from \`NEXT_PUBLIC_APP_URL\`:
+  \`pnpm db:migrate\`, then
+  \`pnpm create-admin admin@example.com "Admin" --env .env.production\`.
 `,
   );
 }
@@ -425,7 +438,7 @@ async function main() {
   console.log(`\n  .env: ${envNote}`);
   console.log(`  git:  ${gitNote}`);
 
-  console.log(`\n  Next:\n    docker compose up -d\n    pnpm db:migrate\n    pnpm dev\n`);
+  console.log(`\n  Next:\n    docker compose up -d\n    pnpm db:migrate\n    pnpm create-admin <email> "<name>"\n    pnpm dev\n`);
   if (doGit && !DRY_RUN) console.log(`  Then point at your own repo:\n    git remote add origin <your-repo-url>\n`);
 }
 

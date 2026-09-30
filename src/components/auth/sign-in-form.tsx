@@ -18,7 +18,7 @@ function getFriendlyError(message: string, status?: number): string {
     lower.includes("network") ||
     lower.includes("econnrefused")
   ) {
-    return "Cannot reach the server — make sure the database and backend are running.";
+    return "We couldn’t sign you in right now. Please try again in a moment.";
   }
   if (
     status === 401 ||

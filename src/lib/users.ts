@@ -25,7 +25,7 @@ export type {
 } from "@/lib/user-schema";
 
 /** True when at least one Admin exists — the "system is bootstrapped" signal
- *  the first-run /setup flow gates on. Throws when the DB is unavailable. */
+ *  the entry cascade gates on (no admin -> /setup). Throws when the DB is unavailable. */
 export async function hasAdmin(): Promise<boolean> {
   if (!db) throw new Error("Database unavailable");
   const [row] = await db
@@ -38,8 +38,8 @@ export async function hasAdmin(): Promise<boolean> {
 
 /**
  * Provision a new user with a role. AUTHORIZATION-FREE: this module knows
- * nothing about sessions or who the caller is. Callers (the Admin surface and
- * the first-run setup flow) authorize first; this module validates its own
+ * nothing about sessions or who the caller is. Callers (the Admin surface)
+ * authorize first; this module validates its own
  * inputs.
  */
 export async function provision(input: UserInput): Promise<{ id: string }> {
