@@ -72,7 +72,7 @@ export default async function AdminPage() {
     <SidebarProvider>
       <AppSidebar user={sidebarUser} />
       <SidebarInset>
-        <Header title="Admin" />
+        <Header title="Admin" description="Manage users." />
         {/* Same skeleton `loading.tsx` uses, so the route-level fallback hands
             off to this one without the content region shifting. */}
         <Suspense fallback={<UsersSectionSkeleton />}>

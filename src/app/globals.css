@@ -2,13 +2,34 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/*
+ * Both dark themes answer to `dark:`. `.moss` is a second dark palette, not a
+ * light one, so every `dark:` utility already written in the app has to fire
+ * under it too — otherwise components that hand-tune themselves for dark
+ * grounds would render their light treatment on a near-black background.
+ */
+@custom-variant dark (&:is(.dark *, .moss *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Both point at the same family on purpose — see `layout.tsx`. */
+  --font-sans: var(--font-jetbrains-mono);
+  --font-mono: var(--font-jetbrains-mono);
+  /*
+   * The whole weight scale is shifted up, not just the body's.
+   *
+   * The baseline is 600 (see `body` below), so Tailwind's stock scale would put
+   * `font-medium` at 500 — LIGHTER than the text around it — and make
+   * `font-semibold` a no-op. Every site that reaches for one of those is asking
+   * for emphasis, so each step is redefined to sit above the baseline instead.
+   * JetBrains Mono is loaded as a variable font, so 650 is a real weight rather
+   * than a rounding to 700.
+   */
+  --font-weight-normal: 600;
+  --font-weight-medium: 650;
+  --font-weight-semibold: 700;
+  --font-weight-bold: 800;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -67,7 +88,7 @@
   --input: oklch(0.9 0.015 70);
   --ring: oklch(0.7 0.02 70);
   --chart-1: oklch(0.87 0.12 207);
-  --chart-2: oklch(0.80 0.13 212);
+  --chart-2: oklch(0.8 0.13 212);
   --chart-3: oklch(0.71 0.13 215);
   --chart-4: oklch(0.61 0.11 222);
   --chart-5: oklch(0.52 0.09 223);
@@ -90,7 +111,7 @@
   --popover: oklch(0.21 0.034 264.665);
   --popover-foreground: oklch(0.985 0.002 247.839);
   --primary: oklch(0.71 0.13 215);
-  --primary-foreground: oklch(0.30 0.05 230);
+  --primary-foreground: oklch(0.3 0.05 230);
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.278 0.033 256.848);
@@ -102,25 +123,102 @@
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.551 0.027 264.364);
   --chart-1: oklch(0.87 0.12 207);
-  --chart-2: oklch(0.80 0.13 212);
+  --chart-2: oklch(0.8 0.13 212);
   --chart-3: oklch(0.71 0.13 215);
   --chart-4: oklch(0.61 0.11 222);
   --chart-5: oklch(0.52 0.09 223);
   --sidebar: oklch(0.21 0.034 264.665);
   --sidebar-foreground: oklch(0.985 0.002 247.839);
-  --sidebar-primary: oklch(0.80 0.13 212);
-  --sidebar-primary-foreground: oklch(0.30 0.05 230);
+  --sidebar-primary: oklch(0.8 0.13 212);
+  --sidebar-primary-foreground: oklch(0.3 0.05 230);
   --sidebar-accent: oklch(0.278 0.033 256.848);
   --sidebar-accent-foreground: oklch(0.985 0.002 247.839);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/*
+ * Moss — the third theme offered in Settings > Appearance, alongside Light and
+ * Dark. A warm near-black ground with olive-green accents: the terminal look,
+ * which is why it earns a place next to a generic slate Dark rather than
+ * replacing it. Its hues sit around 110-130 (green) where `.dark` sits around
+ * 260 (blue), and that hue shift is the entire difference — the token names,
+ * and therefore every component, are identical.
+ *
+ * Adding a fourth theme means three edits, all of which are required: a block
+ * like this one, the theme's name in `themes` on the ThemeProvider in
+ * `layout.tsx`, and an option in the Appearance section of
+ * `components/layout/settings-dialog.tsx`. A dark one also joins the
+ * `@custom-variant dark` selector above.
+ */
+.moss {
+  --background: oklch(0.16 0.012 110);
+  --foreground: oklch(0.93 0.012 110);
+  --card: oklch(0.2 0.014 110);
+  --card-foreground: oklch(0.93 0.012 110);
+  --popover: oklch(0.2 0.014 110);
+  --popover-foreground: oklch(0.93 0.012 110);
+  --primary: oklch(0.78 0.14 132);
+  --primary-foreground: oklch(0.22 0.05 132);
+  --secondary: oklch(0.26 0.016 110);
+  --secondary-foreground: oklch(0.93 0.012 110);
+  --muted: oklch(0.26 0.016 110);
+  --muted-foreground: oklch(0.69 0.022 110);
+  --accent: oklch(0.29 0.028 125);
+  --accent-foreground: oklch(0.93 0.03 125);
+  --destructive: oklch(0.65 0.19 25);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.6 0.06 128);
+  --chart-1: oklch(0.85 0.14 128);
+  --chart-2: oklch(0.78 0.14 132);
+  --chart-3: oklch(0.7 0.13 136);
+  --chart-4: oklch(0.61 0.11 140);
+  --chart-5: oklch(0.52 0.09 144);
+  --sidebar: oklch(0.18 0.013 110);
+  --sidebar-foreground: oklch(0.93 0.012 110);
+  --sidebar-primary: oklch(0.78 0.14 132);
+  --sidebar-primary-foreground: oklch(0.22 0.05 132);
+  --sidebar-accent: oklch(0.29 0.028 125);
+  --sidebar-accent-foreground: oklch(0.93 0.03 125);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.6 0.06 128);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  /*
+   * 15px, not the browser's 16px default. Every Tailwind size in this app is
+   * expressed in `rem`, so this one number retunes the whole scale at once.
+   * It exists because the app is set in JetBrains Mono: a monospace is wider per
+   * character and carries a taller x-height than the proportional face these
+   * component sizes were originally chosen against, so at a true 16px root
+   * every label reads a size too large and long strings (URLs, repo lists)
+   * stop fitting their rows. Shrinking the root restores the intended optical
+   * size without touching a single utility class. Revert it if the body face
+   * ever goes back to a proportional one.
+   */
+  html {
+    /*
+     * A percentage, not a px value: every Tailwind size is in `rem`, so a hard
+     * root size would discard the font size a reader has set in their browser.
+     * 93.75% is 15px against a default 16px root, and 18.75px against a reader
+     * who has asked for 20px.
+     */
+    font-size: 93.75%;
+  }
+  /*
+   * 600, not the 400 a browser defaults to. JetBrains Mono's regular weight is
+   * drawn light for long stretches of code on a dark editor ground; across a UI
+   * of short labels it reads thin and washed out, so the whole app sits two
+   * steps up. The emphasis steps above it are shifted up to match in the
+   * `@theme` block, so `font-medium` / `font-semibold` / `font-bold` still read
+   * as three steps of emphasis rather than as two no-ops and a jump.
+   */
   body {
     @apply bg-background text-foreground;
+    font-weight: var(--font-weight-normal);
   }
 }

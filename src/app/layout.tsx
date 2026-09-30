@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Figtree } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { env } from "@/lib/env";
@@ -11,14 +11,15 @@ import { env } from "@/lib/env";
 // exactly that; it is gone. Before adding a font, add its `--font-*` mapping to
 // `@theme inline` too.)
 
-// Feeds `--font-sans`, which `globals.css` maps to Tailwind's `font-sans`
-// (i.e. the default body typeface).
-const figtree = Figtree({ subsets: ["latin"], variable: "--font-sans" });
-
-// Feeds `--font-geist-mono`, which `globals.css` maps to `--font-mono`
-// (Tailwind's `font-mono`, used by code and other tabular text).
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// The whole app is set in one monospace family: `globals.css` maps
+// `--font-jetbrains-mono` to BOTH Tailwind's `font-sans` (the default body
+// typeface) and `font-mono`. That is deliberate — headings, prose and code all
+// share the terminal-ish look — and it is why no sans family is loaded at all.
+// Restoring a proportional body face means adding it back here *and* pointing
+// `--font-sans` at it in `globals.css`; changing only one leaves a font file
+// downloaded on every page load for nothing.
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
 });
 
@@ -74,9 +75,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={figtree.variable} suppressHydrationWarning>
-      <body className={`${geistMono.variable} antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <html lang="en" className={jetbrainsMono.variable} suppressHydrationWarning>
+      <body className="antialiased">
+        {/* `themes` must list every palette `globals.css` defines — next-themes
+            only ever writes a class it was told about, so a palette missing from
+            this array is unreachable no matter what Settings offers. */}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          themes={["light", "dark", "moss"]}
+          disableTransitionOnChange
+        >
           {children}
         </ThemeProvider>
       </body>
