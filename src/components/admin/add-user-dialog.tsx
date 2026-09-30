@@ -17,8 +17,6 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Add01Icon } from "@hugeicons/core-free-icons"
 
 export function AddUserDialog() {
   const router = useRouter()
@@ -48,8 +46,8 @@ export function AddUserDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="icon-sm" variant="default" aria-label="Add user">
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+        <Button variant="default" className="h-10 rounded-none px-4">
+          Add user
         </Button>
       </DialogTrigger>
       <DialogContent>

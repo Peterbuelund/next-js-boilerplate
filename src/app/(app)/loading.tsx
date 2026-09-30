@@ -24,7 +24,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
  * page moves nothing — only the content region changes.
  *
  * That content region is deliberately thin. The dashboard page body is
- * currently an empty `<div className="p-6" />` placeholder, so inventing cards
+ * currently an empty content-wrapper placeholder, so inventing cards
  * and charts here would promise widgets that never arrive — a bigger jolt than
  * the one this file was written to prevent. One modest heading-height bar is
  * enough to signal "working" honestly; grow this in step with the real page.
@@ -37,9 +37,9 @@ export default function Loading() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <Header title="Dashboard" />
-        {/* Mirrors the page's own `p-6` content wrapper exactly. */}
-        <div className="p-6">
+        <Header title="Dashboard" description="An overview of your workspace." />
+        {/* Mirrors the page's own content wrapper exactly. */}
+        <div className="flex w-[70%] flex-col gap-6 p-6 pt-8">
           {/* aria-busy + a polite live region so a screen reader announces the
               wait instead of reading a page with nothing in it. */}
           <div role="status" aria-busy="true" aria-live="polite">

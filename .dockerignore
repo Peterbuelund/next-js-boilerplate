@@ -55,9 +55,7 @@ npm-debug.log*
 Thumbs.db
 *.pem
 
-# --- DO NOT IGNORE `drizzle/` ----------------------------------------------
-# It looks like generated output that the app does not need, and it is not.
-# `src/lib/system-readiness.ts` does `import journal from
-# "../../drizzle/meta/_journal.json"` — a BUILD-TIME import. Excluding the
-# directory here makes `pnpm build` fail inside the builder stage with an
-# unresolved module. Leave it in the context.
+# --- `drizzle/` ---------------------------------------------------------------
+# Not needed by `pnpm build` or at runtime: nothing in `src/` imports it, and
+# migrations are applied from a checkout (`pnpm db:migrate`), not from the image.
+# It is left in the context only because it is small; ignoring it is safe.

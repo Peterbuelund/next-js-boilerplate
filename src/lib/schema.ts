@@ -3,6 +3,7 @@ import {
   text,
   timestamp,
   boolean,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -60,10 +61,27 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// One-time links for an administrator to choose their password in the browser,
+// issued by `pnpm create-admin` (see `@/lib/admin-invite`). Only a SHA-256 hash
+// of the token is stored, so a leaked database row cannot be redeemed. A row is
+// spent once `used_at` is set; reissuing marks every earlier row for the user as
+// used.
+export const adminInvite = pgTable("admin_invite", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Drizzle Relations for type-safe queries and performance optimization
 export const userRelations = relations(user, ({ many }) => ({
   accounts: many(account),
   sessions: many(session),
+  adminInvites: many(adminInvite),
 }));
 
 export const accountRelations = relations(account, ({ one }) => ({
@@ -76,6 +94,13 @@ export const accountRelations = relations(account, ({ one }) => ({
 export const sessionRelations = relations(session, ({ one }) => ({
   user: one(user, {
     fields: [session.userId],
+    references: [user.id],
+  }),
+}));
+
+export const adminInviteRelations = relations(adminInvite, ({ one }) => ({
+  user: one(user, {
+    fields: [adminInvite.userId],
     references: [user.id],
   }),
 }));

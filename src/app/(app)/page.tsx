@@ -60,8 +60,8 @@ export default async function Page() {
     <SidebarProvider>
       <AppSidebar user={sidebarUser} />
       <SidebarInset>
-        <Header title="Dashboard" />
-        <div className="p-6" />
+        <Header title="Dashboard" description="An overview of your workspace." />
+        <div className="flex w-[70%] flex-col gap-6 p-6 pt-8" />
       </SidebarInset>
     </SidebarProvider>
   );

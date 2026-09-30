@@ -32,7 +32,7 @@ export default function Loading() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <Header title="Admin" />
+        <Header title="Admin" description="Manage users." />
         <UsersSectionSkeleton />
       </SidebarInset>
     </SidebarProvider>

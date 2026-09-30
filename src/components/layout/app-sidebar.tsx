@@ -16,25 +16,47 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
-  SidebarRail,
   SidebarMenuItem,
   SidebarGroup,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
 
-const navItems = [
+type NavItemDef = {
+  title: string
+  url: string
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
+}
+
+const navItems: NavItemDef[] = [
   { title: "Overview", url: "/", icon: LayoutDashboard },
 ]
+
+/**
+ * The nav reads a step larger than shadcn's `text-sm` default, in a taller row
+ * that keeps the padding around the bigger label from looking pinched, with the
+ * icons scaled to match so they still sit optically level with it. Applied
+ * per-button rather than by editing `ui/sidebar.tsx`: that file is generated
+ * shadcn scaffolding shared by every sidebar in the app, and `cn()` merges this
+ * over the variant's `text-sm`/`size-4`, so the override lands without forking
+ * the primitive.
+ */
+const navButtonClass = "h-10 text-[0.95rem] [&_svg]:size-[1.15rem]"
 
 function NavItem({
   item,
   isActive,
 }: {
-  item: (typeof navItems)[number]
+  item: NavItemDef
   isActive: boolean
 }) {
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
+      <SidebarMenuButton
+        asChild
+        tooltip={item.title}
+        isActive={isActive}
+        className={navButtonClass}
+      >
         <Link href={item.url}>
           <item.icon />
           <span>{item.title}</span>
@@ -65,53 +87,51 @@ export function AppSidebar({
       ? pathname === "/"
       : pathname === url || pathname.startsWith(url + "/")
 
+  // No collapse control: the sidebar stays open on desktop. On a phone it is an
+  // offcanvas sheet, so the nav still needs one way in — this trigger, rendered
+  // once here rather than in every page's header.
   return (
-    <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <Link href="/">
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <GalleryVerticalEnd className="size-4" />
-                </div>
-                <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="font-medium">Next.js Boilerplate</span>
-                  <span className="">Starter kit</span>
-                </div>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
-
-      <SidebarContent>
-        <SidebarGroup>
+    <>
+      <SidebarTrigger className="fixed top-3 left-3 z-50 md:hidden" />
+      <Sidebar collapsible="offExamples" {...props}>
+        <SidebarHeader>
           <SidebarMenu>
-            {navItems.map((item) => (
-              <NavItem
-                key={item.title}
-                item={item}
-                isActive={isActive(item.url)}
-              />
-            ))}
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" asChild>
+                <Link href="/">
+                  <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                    <GalleryVerticalEnd className="size-4" />
+                  </div>
+                  <span className="font-medium">Next.js Boilerplate</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
-        </SidebarGroup>
-      </SidebarContent>
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Admin" isActive={isActive("/admin")}>
-              <Link href="/admin">
-                <Settings />
-                <span>Admin</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-        <NavUser user={user} />
-      </SidebarFooter>
-      <SidebarRail />
-    </Sidebar>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarMenu>
+              {navItems.map((item) => (
+                <NavItem
+                  key={item.title}
+                  item={item}
+                  isActive={isActive(item.url)}
+                />
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <NavItem
+              item={{ title: "Admin", url: "/admin", icon: Settings }}
+              isActive={isActive("/admin")}
+            />
+          </SidebarMenu>
+          <NavUser user={user} />
+        </SidebarFooter>
+      </Sidebar>
+    </>
   )
 }
