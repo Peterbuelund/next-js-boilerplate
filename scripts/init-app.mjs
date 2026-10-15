@@ -244,7 +244,7 @@ ${description}
 ## Prerequisites
 
 - Node.js 20+
-- pnpm 11+
+- pnpm 12+
 - PostgreSQL (a \`docker-compose.yml\` is included for local development)
 
 ## Setup
