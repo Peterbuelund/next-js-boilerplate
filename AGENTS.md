@@ -1,10 +1,42 @@
+# next-js-boilerplate
 
-<!-- BEGIN:nextjs-agent-rules -->
+A clean Next.js starting point with authentication, role-based access, and user administration.
+Next.js 16 + React 19, Drizzle on Postgres, Better Auth, Tailwind CSS 4 + shadcn/ui. pnpm.
 
-# This is NOT the Next.js you know
+## Read before you write
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+- `README.md` — setup, env vars, scripts, structure, deployment.
+- `GLOSSARY.md` — the domain language. Read it before naming a new concept,
+  adding a table, or putting a word in the UI. It lists the terms this project
+  refuses as well as the ones it uses; using a refused word is a bug.
+- `docs/adr/` — decisions already made, and why. Check it before changing agent
+  ownership, installation types, or rate limiting. Write a numbered ADR when you
+  make a decision of that size.
+- `CODING-STANDARDS.md` — the conventions the code won't tell you until
+  you've broken one. Read it before adding a Server Action, a `*-schema.ts`
+  file, a model or embedding call, or any new module under `src/lib`.
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
-<!-- END:nextjs-agent-rules -->
+## Finishing work
+
+- `pnpm check` (tsc + eslint) and `pnpm test` must pass.
+- Schema changes: edit `src/lib/schema.ts`, then `pnpm db:generate`, then `pnpm db:migrate`. 
+
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues on `Peterbuelund/next-js-boilerplate`, via the `gh` CLI.
+See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, unchanged: `needs-triage`, `needs-info`,
+`ready-for-agent`, `ready-for-human`, `wontfix`.
+See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root.
+See `docs/agents/domain.md`.

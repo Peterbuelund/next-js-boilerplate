@@ -188,12 +188,12 @@ function rebrandSidebar(appName, tagline) {
 }
 
 /**
- * CONTEXT.md is the domain-model doc and is worth keeping verbatim — only its
+ * GLOSSARY.md is the domain-model doc and is worth keeping verbatim — only its
  * title and self-description name the boilerplate. Both replacements are
  * optional: this file is meant to be edited, so a miss here is not an error.
  */
 function rebrandContextDoc(appName) {
-  const rel = "CONTEXT.md";
+  const rel = "GLOSSARY.md";
   if (!existsSync(resolve(ROOT, rel))) return;
   replaceIn(rel, `# ${PLACEHOLDER_SLUG}\n`, `# ${appName}\n`, { required: false });
   replaceIn(rel, "The domain language for this boilerplate:", `The domain language for ${appName}:`, {

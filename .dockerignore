@@ -40,7 +40,7 @@ tsconfig.tsbuildinfo
 skills-lock.json
 AGENTS.md
 CLAUDE.md
-CONTEXT.md
+GLOSSARY.md
 
 # Local-only infrastructure and docs.
 docker-compose.yml

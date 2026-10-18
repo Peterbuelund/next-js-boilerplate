@@ -1,18 +1,41 @@
-# Project Description
+# next-js-boilerplate
 
-This project uses pnpm
+A clean Next.js starting point with authentication, role-based access, and user administration.
+Next.js 16 + React 19, Drizzle on Postgres, Better Auth, Tailwind CSS 4 + shadcn/ui. pnpm.
 
-## PROJECT REFERENCE
-- See `README.md` for setup, env vars, scripts, structure, and deployment.
+## Read before you write
 
-## RESPONSES
-- Keep responses concise and to the point - unless the user asks otherwise
+- `README.md` — setup, env vars, scripts, structure, deployment.
+- `GLOSSARY.md` — the domain language. Read it before naming a new concept,
+  adding a table, or putting a word in the UI. It lists the terms this project
+  refuses as well as the ones it uses; using a refused word is a bug.
+- `docs/adr/` — decisions already made, and why. Check it before changing agent
+  ownership, installation types, or rate limiting. Write a numbered ADR when you
+  make a decision of that size.
+- `CODING-STANDARDS.md` — the conventions the code won't tell you until
+  you've broken one. Read it before adding a Server Action, a `*-schema.ts`
+  file, a model or embedding call, or any new module under `src/lib`.
+- Schema changes: edit `src/lib/schema.ts`, then `pnpm db:generate`, then `pnpm db:migrate`.
 
-## CHANGE / EDIT MODE
-- Never implement features yourself when possible - use sub-agents!
-- Identify changes from the plan that can be implemented in parallel, and use sub-agents to implement the features efficiently
-- When using sub-agents to implement features, act as a coordinator only
-- After completing features, always run `pnpm check` (tsc + lint) and `pnpm build`
 
-## DATABASE SCHEMA CHANGES
-- Whenever you make changes to the database schema, ALWAYS run the drizzle generate and migrate commands
+## Finishing work
+
+- `pnpm check` (tsc + eslint) and `pnpm test` must pass.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues on `Peterbuelund/next-js-boilerplate`, via the `gh` CLI.
+See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, unchanged: `needs-triage`, `needs-info`,
+`ready-for-agent`, `ready-for-human`, `wontfix`.
+See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root.
+See `docs/agents/domain.md`.

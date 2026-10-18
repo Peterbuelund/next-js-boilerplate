@@ -17,6 +17,10 @@ const nextConfig: NextConfig = {
   // Skipping that step yields a server that boots fine but serves no static
   // assets and no JS chunks.
   output: "standalone",
+
+  // Stop `next dev` from re-inserting its managed agent-rules block into
+  // AGENTS.md whenever it detects an AI coding agent. AGENTS.md is curated here.
+  agentRules: false,
 };
 
 export default nextConfig;
