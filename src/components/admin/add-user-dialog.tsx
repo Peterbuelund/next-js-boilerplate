@@ -46,7 +46,7 @@ export function AddUserDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="default" className="h-10 rounded-none px-4">
+        <Button size="lg">
           Add user
         </Button>
       </DialogTrigger>
