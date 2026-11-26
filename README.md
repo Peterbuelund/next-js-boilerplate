@@ -94,6 +94,9 @@ crashes the process immediately (there is no `SKIP_ENV_VALIDATION` bypass).
 - `BETTER_AUTH_SECRET` — **required**. Better Auth signing secret.
 - `NEXT_PUBLIC_APP_URL` — **required in production**; defaults to `http://localhost:3000` in
   development. The app's public origin, used for auth callbacks and absolute links.
+- `DEV_HOSTS` — optional, development only. Comma-separated hostnames besides `localhost`
+  to open the dev server on, such as `192.168.1.20,my-machine`. Without it, the page loads
+  from another host but never becomes interactive, and sign-in is rejected.
 
 ## Scripts
 
