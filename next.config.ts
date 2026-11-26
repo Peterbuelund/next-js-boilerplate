@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
+import { DEV_HOSTS } from "./src/lib/dev-hosts";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: DEV_HOSTS,
   // Emit `.next/standalone` — a self-contained build containing a minimal
   // `server.js` plus only the node_modules the app actually reaches at runtime,
   // traced from the compiled output. A container image can then ship that

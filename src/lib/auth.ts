@@ -8,6 +8,7 @@ import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { DEV_HOSTS } from "@/lib/dev-hosts";
 import { env } from "@/lib/env";
 import * as schema from "@/lib/schema";
 
@@ -23,6 +24,10 @@ export const auth = betterAuth({
   }),
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.NEXT_PUBLIC_APP_URL,
+  trustedOrigins:
+    env.NODE_ENV === "production"
+      ? []
+      : DEV_HOSTS.map((host) => `http://${host}:*`),
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
